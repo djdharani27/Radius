@@ -89,3 +89,27 @@
   transition: border-color 0.15s;
 }
 .socialLink:hover { border-color: #22d3ee; }
+
+.chatBtn {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.08);
+  color: #67e8f9;
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.chatBtn:hover {
+  border-color: #22d3ee;
+  background: rgba(34, 211, 238, 0.16);
+  color: #cffafe;
+}

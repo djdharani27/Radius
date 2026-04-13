@@ -81,6 +81,17 @@ export default function NearbyList({ nearby }) {
             </div>
           </div>
 
+          <button
+            type="button"
+            className={styles.chatBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/chat/${p.id}`);
+            }}
+          >
+            chat
+          </button>
+
           <div className={styles.ping} />
         </div>
       ))}
