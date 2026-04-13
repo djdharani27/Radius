@@ -1,0 +1,244 @@
+.main {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inboxBtn {
+  background: transparent;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  color: #64748b;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+  font-family: monospace;
+  transition: border-color 0.15s, color 0.15s;
+}
+.inboxBtn:hover { border-color: #22d3ee; color: #22d3ee; }
+
+/* ---- Header ---- */
+.header {
+  padding: 20px 20px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.brand {
+  font-family: var(--mono);
+  color: var(--green);
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 1px;
+}
+
+.pillGreen {
+  background: rgba(0, 255, 140, 0.08);
+  color: var(--green);
+  border: 1px solid rgba(0, 255, 140, 0.25);
+}
+
+.pillAmber {
+  background: rgba(255, 184, 48, 0.08);
+  color: var(--amber);
+  border: 1px solid rgba(255, 184, 48, 0.25);
+}
+
+.pillDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dot 1.8s infinite;
+}
+
+@keyframes dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ---- Banners ---- */
+.errorBanner {
+  margin: 10px 20px 0;
+  background: rgba(255, 77, 109, 0.1);
+  border: 1px solid rgba(255, 77, 109, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--red);
+  font-family: var(--mono);
+}
+
+.notifBanner {
+  margin: 10px 20px 0;
+  background: rgba(255, 184, 48, 0.07);
+  border: 1px solid rgba(255, 184, 48, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--amber);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notifBtn {
+  background: rgba(255, 184, 48, 0.15);
+  border: 1px solid rgba(255, 184, 48, 0.3);
+  color: var(--amber);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* ---- Radar ---- */
+.radarWrap {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.radarCanvas {
+  width: min(300px, calc(100vw - 48px));
+  height: min(300px, calc(100vw - 48px));
+}
+
+.coords {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* ---- Slider ---- */
+.sliderWrap {
+  padding: 0 20px 8px;
+  flex-shrink: 0;
+}
+
+.sliderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sliderLabel {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.sliderValue {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--green);
+  min-width: 60px;
+  text-align: right;
+}
+
+.slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(0, 255, 140, 0.15);
+  border-radius: 2px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 140, 0.5);
+}
+
+.sliderTicks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ---- Nearby list ---- */
+.listSection {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 12px;
+}
+
+.listHeader {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+  padding-top: 4px;
+}
+
+.listCount { color: var(--green); }
+
+/* ---- Footer ---- */
+.footer {
+  padding: 12px 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.logoutBtn {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+}
+
+
+.editBtn {
+  background: transparent;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  color: #64748b;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+  font-family: monospace;
+  transition: border-color 0.15s, color 0.15s;
+}
+.editBtn:hover { border-color: #22d3ee; color: #22d3ee; }

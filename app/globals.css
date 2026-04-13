@@ -1,0 +1,48 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080c10;
+  --surface: #0e1520;
+  --surface2: #151e2d;
+  --border: rgba(0, 255, 140, 0.15);
+  --green: #00ff8c;
+  --green-dim: rgba(0, 255, 140, 0.4);
+  --amber: #ffb830;
+  --red: #ff4d6d;
+  --text: #e0ffe8;
+  --text-muted: #5a7a60;
+  --text-mid: #8ab89a;
+  --mono: "Share Tech Mono", monospace;
+  --sans: "DM Sans", sans-serif;
+  --radius: 12px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dot grid background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 255, 140, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 140, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+button { cursor: pointer; font-family: var(--sans); }
+
+input:focus { outline: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,140,0.2); border-radius: 2px; }

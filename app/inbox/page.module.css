@@ -1,0 +1,123 @@
+.loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  color: #64748b;
+  background: #0a0f1a;
+}
+
+.main {
+  min-height: 100vh;
+  background: #0a0f1a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.brand {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #22d3ee;
+  letter-spacing: 0.12em;
+}
+
+.count {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #475569;
+  min-width: 40px;
+  text-align: right;
+}
+
+.backBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-family: monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+.backBtn:hover { color: #22d3ee; }
+
+.list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.empty {
+  text-align: center;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #334155;
+  padding: 3rem 1.5rem;
+  line-height: 1.8;
+}
+
+.chatRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.chatRow:hover { background: #0f172a; }
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0e7490, #0c4a6e);
+  border: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #22d3ee;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.lastMsg {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.2rem;
+  font-family: monospace;
+}
+
+.arrow {
+  color: #334155;
+  font-size: 0.9rem;
+}

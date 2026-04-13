@@ -1,0 +1,225 @@
+.main {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 24px;
+}
+
+/* ---- Logo ---- */
+.logo { text-align: center; }
+
+.logoMark {
+  width: 72px;
+  height: 72px;
+  border: 1.5px solid var(--green);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 0 24px rgba(0, 255, 140, 0.2), inset 0 0 24px rgba(0, 255, 140, 0.05);
+  position: relative;
+}
+
+.logoMark::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid rgba(0, 255, 140, 0.3);
+  border-radius: 50%;
+}
+
+.logoPulse {
+  width: 10px;
+  height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--green);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.5; }
+}
+
+.logoTitle {
+  font-family: var(--mono);
+  font-size: 28px;
+  letter-spacing: 3px;
+  color: var(--green);
+}
+
+.logoSub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
+/* ---- Card ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.cardTitle {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+/* ---- Inputs ---- */
+.inputGroup { margin-bottom: 20px; }
+
+.label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid rgba(0, 255, 140, 0.1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+.input::placeholder { color: var(--text-muted); }
+.input:focus { border-color: var(--green-dim); }
+
+/* ---- Roles ---- */
+.roleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.roleBtn {
+  background: var(--surface2);
+  border: 1px solid rgba(0, 255, 140, 0.1);
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.roleBtn:hover { border-color: var(--green-dim); }
+
+.roleSelected {
+  border-color: var(--green);
+  background: rgba(0, 255, 140, 0.06);
+}
+
+.roleIcon { font-size: 24px; display: block; margin-bottom: 8px; }
+
+.roleLabel {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-mid);
+}
+
+.roleSelected .roleLabel { color: var(--green); }
+
+.roleHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 18px;
+}
+
+/* ---- Actions ---- */
+.error {
+  font-size: 13px;
+  color: var(--red);
+  margin-bottom: 14px;
+  font-family: var(--mono);
+}
+
+.btnPrimary {
+  width: 100%;
+  background: var(--green);
+  color: #080c10;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: opacity 0.2s;
+}
+
+.btnPrimary:hover { opacity: 0.88; }
+.btnPrimary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
+.boot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  color: #64748b;
+  font-size: 0.85rem;
+  background: #0a0f1a;
+}
+
+.cardDesc {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.googleBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  background: #fff;
+  color: #1e293b;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  margin-bottom: 1rem;
+}
+.googleBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+.googleBtn:hover:not(:disabled) { opacity: 0.9; }
+
+.terms {
+  font-size: 0.72rem;
+  color: #475569;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.error {
+  color: #f87171;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
