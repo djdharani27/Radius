@@ -11,55 +11,76 @@ export function useNearby(user, rangeMeters) {
   const unsubRef = useRef(null);
 
   useEffect(() => {
-    // Guard — user is null until location + auth are ready
-    if (!user?.lat || !user?.lng || !user?.uid) return;
+    if (!user?.uid || user?.lat == null || user?.lng == null) {
+      setNearby([]);
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
+      }
+      return;
+    }
 
     const box = getBoundingBox(user.lat, user.lng, rangeMeters);
 
     const q = query(
       collection(db, "users"),
-      where("role", "==", "entrepreneur"),
       where("lat", ">=", box.minLat),
       where("lat", "<=", box.maxLat)
     );
 
-    if (unsubRef.current) unsubRef.current();
+    if (unsubRef.current) {
+      unsubRef.current();
+      unsubRef.current = null;
+    }
 
     unsubRef.current = onSnapshot(q, (snapshot) => {
-      const results = [];
+      const unique = new Map();
 
       snapshot.forEach((docSnap) => {
-        if (docSnap.id === user.uid) return;
-
+        const id = docSnap.id;
         const data = docSnap.data();
+
+        if (id === user.uid || data.uid === user.uid) return;
         if (!data.active) return;
+        if (typeof data.lat !== "number" || typeof data.lng !== "number") return;
+        if (data.lng < box.minLng || data.lng > box.maxLng) return;
 
         const dist = haversineMeters(user.lat, user.lng, data.lat, data.lng);
         if (dist > rangeMeters) return;
 
-        if (data.lng < box.minLng || data.lng > box.maxLng) return;
+        unique.set(id, {
+          id,
+          ...data,
+          dist,
+        });
+      });
 
-        results.push({ id: docSnap.id, ...data, dist });
+      const results = Array.from(unique.values()).sort((a, b) => a.dist - b.dist);
+      const currentIds = new Set(results.map((r) => r.id));
 
-        if (!notifiedRef.current.has(docSnap.id)) {
-          notifiedRef.current.add(docSnap.id);
-          fireNotification(data.name, Math.round(dist));
+      results.forEach((person) => {
+        if (!notifiedRef.current.has(person.id)) {
+          notifiedRef.current.add(person.id);
+          fireNotification(person.name, Math.round(person.dist));
         }
       });
 
-      const currentIds = new Set(results.map((r) => r.id));
       for (const id of notifiedRef.current) {
-        if (!currentIds.has(id)) notifiedRef.current.delete(id);
+        if (!currentIds.has(id)) {
+          notifiedRef.current.delete(id);
+        }
       }
 
-      results.sort((a, b) => a.dist - b.dist);
       setNearby(results);
     });
 
     return () => {
-      if (unsubRef.current) unsubRef.current();
+      if (unsubRef.current) {
+        unsubRef.current();
+        unsubRef.current = null;
+      }
     };
-  }, [user?.lat, user?.lng, user?.uid, rangeMeters]);
+  }, [user?.uid, user?.lat, user?.lng, rangeMeters]);
 
   return { nearby };
 }
@@ -74,9 +95,9 @@ function fireNotification(name, distMeters) {
       ? `${distMeters} m`
       : `${(distMeters / 1000).toFixed(1)} km`;
 
-  new Notification("🚀 Entrepreneur nearby!", {
-    body: `${name} is an entrepreneur near you — ${dist} away`,
-    tag: "er-" + name,
+  new Notification("Professional nearby", {
+    body: `${name} is nearby on Radius - ${dist} away`,
+    tag: "radius-" + name,
     renotify: false,
   });
 }

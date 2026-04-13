@@ -17,17 +17,36 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!active) return;
+
       setUser(firebaseUser ?? null);
-      if (firebaseUser) {
-        const snap = await getDoc(doc(db, "profiles", firebaseUser.uid));
-        setProfile(snap.exists() ? snap.data() : null);
-      } else {
+
+      try {
+        if (firebaseUser) {
+          const snap = await getDoc(doc(db, "profiles", firebaseUser.uid));
+          if (!active) return;
+          setProfile(snap.exists() ? snap.data() : null);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error("Failed to load auth profile:", error);
+        if (!active) return;
         setProfile(null);
       }
-      setLoading(false);
+
+      if (active) {
+        setLoading(false);
+      }
     });
-    return unsub;
+
+    return () => {
+      active = false;
+      unsub();
+    };
   }, []);
 
   // Call this after saving profile so radar page refreshes without re-mount

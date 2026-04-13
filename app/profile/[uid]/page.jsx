@@ -8,11 +8,11 @@ import { useAuth } from "@/hooks/useAuth";
 import styles from "./page.module.css";
 
 const SOCIALS = [
-  { key: "linkedin",  label: "LinkedIn",    icon: "in", color: "#0077b5" },
-  { key: "twitter",   label: "Twitter / X", icon: "𝕏",  color: "#ffffff" },
-  { key: "instagram", label: "Instagram",   icon: "Ig", color: "#e1306c" },
-  { key: "whatsapp",  label: "WhatsApp",    icon: "📱", color: "#25d366", isWhatsapp: true },
-  { key: "website",   label: "Website",     icon: "🌐", color: "#22d3ee" },
+  { key: "linkedin", label: "LinkedIn", icon: "in", color: "#0077b5" },
+  { key: "twitter", label: "Twitter / X", icon: "X", color: "#ffffff" },
+  { key: "instagram", label: "Instagram", icon: "Ig", color: "#e1306c" },
+  { key: "whatsapp", label: "WhatsApp", icon: "WA", color: "#25d366", isWhatsapp: true },
+  { key: "website", label: "Website", icon: "Web", color: "#22d3ee" },
 ];
 
 function SocialLink({ href, color, icon, label }) {
@@ -40,8 +40,14 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.replace("/"); return; }
-    if (uid === user.uid) { router.replace("/radar"); return; }
+    if (!user) {
+      router.replace("/");
+      return;
+    }
+    if (uid === user.uid) {
+      router.replace("/radar");
+      return;
+    }
 
     getDoc(doc(db, "profiles", uid))
       .then((snap) => {
@@ -60,7 +66,7 @@ export default function ProfilePage() {
       <div className={styles.loading}>
         // profile not found
         <br /><br />
-        <button className={styles.backBtn} onClick={() => router.back()}>← go back</button>
+        <button className={styles.backBtn} onClick={() => router.back()}>back</button>
       </div>
     );
   }
@@ -72,19 +78,21 @@ export default function ProfilePage() {
     .slice(0, 2)
     .toUpperCase();
 
+  const isVisibleOnRadar = profile.radarActive ?? true;
+
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={() => router.back()}>← back</button>
-        <span className={styles.brand}>ENTRERADAR</span>
+        <button className={styles.backBtn} onClick={() => router.back()}>back</button>
+        <span className={styles.brand}>RADIUS</span>
       </header>
 
       <div className={styles.hero}>
         <div className={styles.avatar}>{initials}</div>
         <h1 className={styles.name}>{profile.name}</h1>
-        <div className={styles.title}>{profile.title || "entrepreneur"}</div>
-        <div className={`${styles.badge} ${profile.role === "entrepreneur" ? styles.badgeGreen : styles.badgeAmber}`}>
-          {profile.role === "entrepreneur" ? "🚀 Entrepreneur" : "👤 Explorer"}
+        <div className={styles.title}>{profile.title || "professional"}</div>
+        <div className={`${styles.badge} ${isVisibleOnRadar ? styles.badgeGreen : styles.badgeAmber}`}>
+          {isVisibleOnRadar ? "Professional" : "Invisible Mode"}
         </div>
       </div>
 
@@ -97,6 +105,7 @@ export default function ProfilePage() {
             const href = isWhatsapp
               ? `https://wa.me/${val.replace(/\D/g, "")}`
               : val.startsWith("http") ? val : `https://${val}`;
+
             return (
               <SocialLink
                 key={key}
@@ -116,7 +125,7 @@ export default function ProfilePage() {
           className={styles.messageBtn}
           onClick={() => router.push(`/chat/${uid}`)}
         >
-          💬 Send a Message
+          Send a Message
         </button>
       </div>
     </main>

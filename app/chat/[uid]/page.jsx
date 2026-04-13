@@ -23,7 +23,6 @@ export default function ChatPage() {
 
   const chatId = user ? getChatId(user.uid, otherUid) : null;
 
-  // Load other user's profile
   useEffect(() => {
     if (!otherUid) return;
     getDoc(doc(db, "profiles", otherUid)).then((snap) => {
@@ -31,13 +30,11 @@ export default function ChatPage() {
     });
   }, [otherUid]);
 
-  // Auth guard
   useEffect(() => {
     if (authLoading) return;
     if (!user) router.replace("/");
   }, [user, authLoading, router]);
 
-  // Real-time messages
   useEffect(() => {
     if (!chatId) return;
     const q = query(
@@ -50,7 +47,6 @@ export default function ChatPage() {
     return unsub;
   }, [chatId]);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -60,8 +56,8 @@ export default function ChatPage() {
     setSending(true);
     const msgText = text.trim();
     setText("");
+
     try {
-      // Create/update chat doc
       await setDoc(
         doc(db, "chats", chatId),
         {
@@ -73,7 +69,7 @@ export default function ChatPage() {
         },
         { merge: true }
       );
-      // Add message
+
       await addDoc(collection(db, "chats", chatId, "messages"), {
         senderId: user.uid,
         text: msgText,
@@ -81,8 +77,9 @@ export default function ChatPage() {
       });
     } catch (e) {
       console.error("Send failed:", e);
-      setText(msgText); // restore on failure
+      setText(msgText);
     }
+
     setSending(false);
   }
 
@@ -97,12 +94,11 @@ export default function ChatPage() {
 
   return (
     <main className={styles.main}>
-      {/* Header */}
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={() => router.back()}>← back</button>
+        <button className={styles.backBtn} onClick={() => router.back()}>back</button>
         <div className={styles.headerCenter}>
           <div className={styles.headerName}>{otherProfile?.name || "..."}</div>
-          <div className={styles.headerTitle}>{otherProfile?.title || "entrepreneur"}</div>
+          <div className={styles.headerTitle}>{otherProfile?.title || "professional"}</div>
         </div>
         <button
           className={styles.profileBtn}
@@ -112,13 +108,12 @@ export default function ChatPage() {
         </button>
       </header>
 
-      {/* Messages */}
       <div className={styles.messages}>
         {messages.length === 0 && (
           <div className={styles.empty}>
             // no messages yet
             <br />
-            say hello 👋
+            say hello
           </div>
         )}
         {messages.map((m) => {
@@ -135,22 +130,31 @@ export default function ChatPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className={styles.inputBar}>
         <textarea
           className={styles.input}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKey}
-          placeholder="Type a message…"
+          placeholder="Type a message..."
           rows={1}
         />
         <button
           className={styles.sendBtn}
           onClick={sendMessage}
           disabled={!text.trim() || sending}
+          aria-label={sending ? "Sending message" : "Send message"}
         >
-          ↑
+          <svg
+            className={styles.sendIcon}
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 11.5L19.5 4l-3.4 16-4.9-5-4.4 1.8 2-5.3L4 11.5z"
+              fill="currentColor"
+            />
+          </svg>
         </button>
       </div>
     </main>

@@ -4,8 +4,8 @@ import RadarToggle from "@/components/RadarToggle";
 import "./globals.css";
 
 export const metadata = {
-  title: "EntreRadar",
-  description: "Proximity network for entrepreneurs",
+  title: "Radius",
+  description: "Real-time proximity network for professionals",
 };
 
 export default function RootLayout({ children }) {

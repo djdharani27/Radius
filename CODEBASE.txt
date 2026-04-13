@@ -1,0 +1,3473 @@
+================================================================================
+ENTRERADAR - COMPLETE CODEBASE
+Updated: April 13, 2026
+================================================================================
+
+================================================================================
+FILE: package.json
+================================================================================
+{
+  "name": "entreradar",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "firebase": "^10.12.2",
+    "geofire-common": "^6.0.0",
+    "next": "14.2.5",
+    "react": "^18",
+    "react-dom": "^18"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.5"
+  }
+}
+
+================================================================================
+FILE: tsconfig.json
+================================================================================
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"]
+    },
+    "ignoreDeprecations": "6.0",
+
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [{ "name": "next" }]
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx"
+  ],
+  "exclude": ["node_modules"]
+}
+
+================================================================================
+FILE: jsconfig.json
+================================================================================
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./*"]
+    }
+  }
+}
+
+================================================================================
+FILE: next.config.mjs
+================================================================================
+/** @type {import('next').NextConfig} */
+const nextConfig = {};
+export default nextConfig;
+
+================================================================================
+FILE: firestore.indexes.json
+================================================================================
+{
+  "indexes": [
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "role",      "order": "ASCENDING" },
+        { "fieldPath": "lat",       "order": "ASCENDING" },
+        { "fieldPath": "lastSeen",  "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+
+================================================================================
+FILE: app/layout.jsx
+================================================================================
+import { LocationProvider } from "@/context/LocationContext";
+import { ChatNotificationProvider } from "@/context/ChatNotificationContext";
+import RadarToggle from "@/components/RadarToggle";
+import "./globals.css";
+
+export const metadata = {
+  title: "EntreRadar",
+  description: "Proximity network for entrepreneurs",
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <LocationProvider>
+          <ChatNotificationProvider>
+            {children}
+            <RadarToggle />
+          </ChatNotificationProvider>
+        </LocationProvider>
+      </body>
+    </html>
+  );
+}
+
+================================================================================
+FILE: app/page.jsx
+================================================================================
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { signInWithGoogle } from "@/lib/firebase";
+import styles from "./page.module.css";
+
+export default function LandingPage() {
+  const router = useRouter();
+  const { user, profile, loading } = useAuth();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) return;
+
+    if (profile) {
+      router.replace("/radar");
+      return;
+    }
+
+    router.replace("/setup");
+  }, [user, profile, loading, router]);
+
+  async function handleSignIn() {
+    setBusy(true);
+    setError("");
+
+    try {
+      await signInWithGoogle();
+      // On mobile redirect flow, page reload happens automatically.
+      // On popup flow, onAuthStateChanged will update user state.
+    } catch (e) {
+      console.error("Sign-in failed:", e);
+      setError("Sign-in failed. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!loading && user) {
+      setBusy(false);
+    }
+  }, [loading, user]);
+
+  if (loading) {
+    return <div className={styles.boot}>// initializing...</div>;
+  }
+
+  return (
+    <main className={styles.main}>
+      <div className={styles.logo}>
+        <div className={styles.logoMark}>
+          <div className={styles.logoPulse} />
+        </div>
+        <h1 className={styles.logoTitle}>ENTRERADAR</h1>
+        <p className={styles.logoSub}>proximity network</p>
+      </div>
+
+      <div className={styles.card}>
+        <div className={styles.cardTitle}>// sign in to continue</div>
+        <p className={styles.cardDesc}>
+          Discover entrepreneurs and builders around you — in real time.
+        </p>
+
+        {error && <p className={styles.error}>{error}</p>}
+
+        <button
+          className={styles.googleBtn}
+          onClick={handleSignIn}
+          disabled={busy}
+        >
+          <GoogleIcon />
+          {busy ? "Redirecting…" : "Continue with Google"}
+        </button>
+
+        <p className={styles.terms}>
+          By continuing you allow EntreRadar to use your approximate location while active.
+        </p>
+      </div>
+    </main>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" style={{ flexShrink: 0 }}>
+      <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908C16.658 14.013 17.64 11.706 17.64 9.2z"/>
+      <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+      <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+      <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"/>
+    </svg>
+  );
+}
+
+================================================================================
+FILE: app/globals.css
+================================================================================
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080c10;
+  --surface: #0e1520;
+  --surface2: #151e2d;
+  --border: rgba(0, 255, 140, 0.15);
+  --green: #00ff8c;
+  --green-dim: rgba(0, 255, 140, 0.4);
+  --amber: #ffb830;
+  --red: #ff4d6d;
+  --text: #e0ffe8;
+  --text-muted: #5a7a60;
+  --text-mid: #8ab89a;
+  --mono: "Share Tech Mono", monospace;
+  --sans: "DM Sans", sans-serif;
+  --radius: 12px;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Dot grid background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 255, 140, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 140, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+button { cursor: pointer; font-family: var(--sans); }
+
+input:focus { outline: none; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,140,0.2); border-radius: 2px; }
+
+================================================================================
+FILE: app/page.module.css
+================================================================================
+.main {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 24px;
+}
+
+/* ---- Logo ---- */
+.logo { text-align: center; }
+
+.logoMark {
+  width: 72px;
+  height: 72px;
+  border: 1.5px solid var(--green);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 0 24px rgba(0, 255, 140, 0.2), inset 0 0 24px rgba(0, 255, 140, 0.05);
+  position: relative;
+}
+
+.logoMark::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid rgba(0, 255, 140, 0.3);
+  border-radius: 50%;
+}
+
+.logoPulse {
+  width: 10px;
+  height: 10px;
+  background: var(--green);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--green);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0.5; }
+}
+
+.logoTitle {
+  font-family: var(--mono);
+  font-size: 28px;
+  letter-spacing: 3px;
+  color: var(--green);
+}
+
+.logoSub {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  letter-spacing: 1px;
+}
+
+/* ---- Card ---- */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.cardTitle {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+/* ---- Inputs ---- */
+.inputGroup { margin-bottom: 20px; }
+
+.label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 8px;
+}
+
+.input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid rgba(0, 255, 140, 0.1);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+.input::placeholder { color: var(--text-muted); }
+.input:focus { border-color: var(--green-dim); }
+
+/* ---- Roles ---- */
+.roleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.roleBtn {
+  background: var(--surface2);
+  border: 1px solid rgba(0, 255, 140, 0.1);
+  border-radius: 8px;
+  padding: 16px 12px;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.roleBtn:hover { border-color: var(--green-dim); }
+
+.roleSelected {
+  border-color: var(--green);
+  background: rgba(0, 255, 140, 0.06);
+}
+
+.roleIcon { font-size: 24px; display: block; margin-bottom: 8px; }
+
+.roleLabel {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-mid);
+}
+
+.roleSelected .roleLabel { color: var(--green); }
+
+.roleHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-height: 18px;
+}
+
+/* ---- Actions ---- */
+.error {
+  font-size: 13px;
+  color: var(--red);
+  margin-bottom: 14px;
+  font-family: var(--mono);
+}
+
+.btnPrimary {
+  width: 100%;
+  background: var(--green);
+  color: #080c10;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: opacity 0.2s;
+}
+
+.btnPrimary:hover { opacity: 0.88; }
+.btnPrimary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+
+.boot {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  color: #64748b;
+  font-size: 0.85rem;
+  background: #0a0f1a;
+}
+
+.cardDesc {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.googleBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1.25rem;
+
+================================================================================
+FILE: app/radar/page.jsx
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useAuth } from "@/hooks/useAuth";
+import { useLocationContext } from "@/context/LocationContext";
+import { signOutUser } from "@/lib/firebase";
+import { useNearby } from "@/hooks/useNearby";
+import NearbyList from "@/components/NearbyList";
+import EditProfileModal from "@/components/EditProfileModal";
+import styles from "./page.module.css";
+
+const RadarCanvas = dynamic(() => import("@/components/RadarCanvas"), { ssr: false });
+
+const RANGE_MIN = 100;
+const RANGE_MAX = 5000;
+const RANGE_DEFAULT = 1000;
+
+export default function RadarPage() {
+  const router = useRouter();
+  const { user, profile, loading, refreshProfile } = useAuth();
+  const { lat, lng, error: locError } = useLocationContext();
+  const [rangeMeters, setRangeMeters] = useState(RANGE_DEFAULT);
+  const [notifGranted, setNotifGranted] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) { router.replace("/"); return; }
+    if (!profile) { router.replace("/setup"); return; }
+  }, [user, profile, loading, router]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission === "granted") { setNotifGranted(true); return; }
+    if (Notification.permission === "default") {
+      Notification.requestPermission().then((p) => setNotifGranted(p === "granted"));
+    }
+  }, []);
+
+  const { nearby } = useNearby(
+    lat && lng ? { lat, lng, uid: user?.uid } : null,
+    rangeMeters
+  );
+
+  async function handleSignOut() {
+    await signOutUser();
+    router.replace("/");
+  }
+
+  const rangeLabel =
+    rangeMeters < 1000
+      ? `${rangeMeters} m`
+      : `${(rangeMeters / 1000).toFixed(1)} km`;
+
+  const isEntrepreneur = profile?.role === "entrepreneur";
+
+  if (loading || !profile) {
+    return <div className={styles.loading}>// initializing radar...</div>;
+  }
+
+  return (
+    <main className={styles.main}>
+      <header className={styles.header}>
+        <span className={styles.brand}>ENTRERADAR</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div className={`${styles.pill} ${isEntrepreneur ? styles.pillGreen : styles.pillAmber}`}>
+            <span className={styles.pillDot} />
+            {isEntrepreneur ? "BROADCASTING" : "SCANNING"}
+          </div>
+          <button className={styles.editBtn} onClick={() => setShowEdit(true)}>✎ profile</button>
+          <button className={styles.inboxBtn} onClick={() => router.push("/inbox")}>💬 inbox</button>
+        </div>
+      </header>
+
+      {locError && <div className={styles.errorBanner}>⚠ {locError}</div>}
+
+      {!notifGranted && !locError && (
+        <div className={styles.notifBanner}>
+          Enable notifications to get alerted when an entrepreneur is nearby.
+          <button
+            className={styles.notifBtn}
+            onClick={() => Notification.requestPermission().then((p) => setNotifGranted(p === "granted"))}
+          >
+            Allow
+          </button>
+        </div>
+      )}
+
+      <div className={styles.radarWrap}>
+        <div className={styles.radarCanvas}>
+          {lat && lng ? (
+            <RadarCanvas userLat={lat} userLng={lng} peers={nearby} rangeMeters={rangeMeters} />
+          ) : (
+            <div className={styles.loading}>// acquiring signal...</div>
+          )}
+        </div>
+        <div className={styles.coords}>
+          {lat ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : "acquiring signal..."}
+        </div>
+      </div>
+
+      <div className={styles.sliderWrap}>
+        <div className={styles.sliderHeader}>
+          <span className={styles.sliderLabel}>// detection range</span>
+          <span className={styles.sliderValue}>{rangeLabel}</span>
+        </div>
+        <input
+          type="range" min={RANGE_MIN} max={RANGE_MAX} step={100}
+          value={rangeMeters}
+          onChange={(e) => setRangeMeters(Number(e.target.value))}
+          className={styles.slider}
+        />
+        <div className={styles.sliderTicks}>
+          <span>100 m</span><span>1 km</span><span>2 km</span><span>5 km</span>
+        </div>
+      </div>
+
+      <div className={styles.listSection}>
+        <div className={styles.listHeader}>
+          // nearby entrepreneurs
+          <span className={styles.listCount}>
+            {nearby.length > 0 ? ` (${nearby.length})` : ""}
+          </span>
+        </div>
+        <NearbyList nearby={nearby} />
+      </div>
+
+      <div className={styles.footer}>
+        hello, {profile?.name || "user"} ·{" "}
+        <button className={styles.logoutBtn} onClick={handleSignOut}>sign out</button>
+      </div>
+
+      {showEdit && (
+        <EditProfileModal
+          user={user}
+          profile={profile}
+          onClose={() => setShowEdit(false)}
+          onSaved={refreshProfile}
+        />
+      )}
+    </main>
+  );
+}
+
+================================================================================
+FILE: app/radar/page.module.css
+================================================================================
+.main {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.inboxBtn {
+  background: transparent;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  color: #64748b;
+  font-size: 0.7rem;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+  font-family: monospace;
+  transition: border-color 0.15s, color 0.15s;
+}
+.inboxBtn:hover { border-color: #22d3ee; color: #22d3ee; }
+
+/* ---- Header ---- */
+.header {
+  padding: 20px 20px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.brand {
+  font-family: var(--mono);
+  color: var(--green);
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 1px;
+}
+
+.pillGreen {
+  background: rgba(0, 255, 140, 0.08);
+  color: var(--green);
+  border: 1px solid rgba(0, 255, 140, 0.25);
+}
+
+.pillAmber {
+  background: rgba(255, 184, 48, 0.08);
+  color: var(--amber);
+  border: 1px solid rgba(255, 184, 48, 0.25);
+}
+
+.pillDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: dot 1.8s infinite;
+}
+
+@keyframes dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ---- Banners ---- */
+.errorBanner {
+  margin: 10px 20px 0;
+  background: rgba(255, 77, 109, 0.1);
+  border: 1px solid rgba(255, 77, 109, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--red);
+  font-family: var(--mono);
+}
+
+.notifBanner {
+  margin: 10px 20px 0;
+  background: rgba(255, 184, 48, 0.07);
+  border: 1px solid rgba(255, 184, 48, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--amber);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.notifBtn {
+  background: rgba(255, 184, 48, 0.15);
+  border: 1px solid rgba(255, 184, 48, 0.3);
+  color: var(--amber);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+/* ---- Radar ---- */
+.radarWrap {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.radarCanvas {
+  width: min(300px, calc(100vw - 48px));
+  height: min(300px, calc(100vw - 48px));
+}
+
+.coords {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* ---- Slider ---- */
+.sliderWrap {
+  padding: 0 20px 8px;
+  flex-shrink: 0;
+}
+
+.sliderHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.sliderLabel {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.sliderValue {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--green);
+  min-width: 60px;
+  text-align: right;
+}
+
+.slider {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 4px;
+  background: rgba(0, 255, 140, 0.15);
+  border-radius: 2px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--green);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 255, 140, 0.5);
+}
+
+.sliderTicks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ---- Nearby list ---- */
+.listSection {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 12px;
+}
+
+================================================================================
+FILE: app/setup/page.jsx
+================================================================================
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { db } from "@/lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import styles from "./page.module.css";
+
+const TITLE_SUGGESTIONS = [
+  "Startup Founder", "Software Engineer", "Product Manager",
+  "Investor / VC", "Designer", "Marketing Lead",
+  "Student Entrepreneur", "Business Developer",
+];
+
+const SOCIAL_FIELDS = [
+  { key: "linkedin",  label: "LinkedIn",   placeholder: "linkedin.com/in/yourhandle" },
+  { key: "twitter",   label: "Twitter / X", placeholder: "x.com/yourhandle" },
+  { key: "instagram", label: "Instagram",  placeholder: "instagram.com/yourhandle" },
+  { key: "whatsapp",  label: "WhatsApp",   placeholder: "+91 98765 43210" },
+  { key: "website",   label: "Website",    placeholder: "https://yoursite.com" },
+];
+
+export default function SetupPage() {
+  const router = useRouter();
+  const { user, profile, loading, refreshProfile } = useAuth();
+
+  const [name, setName]   = useState("");
+  const [role, setRole]   = useState("entrepreneur");
+  const [title, setTitle] = useState("");
+  const [socials, setSocials] = useState(
+    { linkedin: "", twitter: "", instagram: "", whatsapp: "", website: "" }
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) { router.replace("/"); return; }
+    if (profile) { router.replace("/radar"); return; }
+    setName(user.displayName || "");
+  }, [user, profile, loading, router]);
+
+  function updateSocial(key, val) {
+    setSocials((prev) => ({ ...prev, [key]: val }));
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { setError("Name is required."); return; }
+    if (!title.trim()) { setError("Tell us how you want to appear on radar."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const data = {
+        name: name.trim(),
+        role,
+        title: title.trim(),
+        ...Object.fromEntries(
+          Object.entries(socials).map(([k, v]) => [k, v.trim()])
+        ),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      await setDoc(doc(db, "profiles", user.uid), data);
+      refreshProfile(data);
+      router.replace("/radar");
+    } catch {
+      setError("Failed to save. Please try again.");
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <div className={styles.loading}>// loading...</div>;
+
+  return (
+    <main className={styles.main}>
+      <header className={styles.header}>
+        <span className={styles.brand}>ENTRERADAR</span>
+        <span className={styles.step}>// setup profile</span>
+      </header>
+
+      <div className={styles.scroll}>
+        {/* Name */}
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>Your Name</label>
+          <input
+            className={styles.input}
+            value={name}
+            onChange={(e) => { setName(e.target.value); setError(""); }}
+            placeholder="How people know you"
+            maxLength={40}
+          />
+        </div>
+
+        {/* Radar mode */}
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>Radar Mode</label>
+          <div className={styles.roleGrid}>
+            {[
+              { value: "entrepreneur", icon: "🚀", label: "Entrepreneur", hint: "Visible to others" },
+              { value: "explorer",     icon: "👤", label: "Explorer",     hint: "Invisible — scan only" },
+            ].map((r) => (
+              <button
+                key={r.value}
+                className={`${styles.roleBtn} ${role === r.value ? styles.roleSelected : ""}`}
+                onClick={() => setRole(r.value)}
+              >
+                <span className={styles.roleIcon}>{r.icon}</span>
+                <span className={styles.roleLabel}>{r.label}</span>
+                <span className={styles.roleHint}>{r.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>How you'll appear on radar</label>
+          <input
+            className={styles.input}
+            value={title}
+            onChange={(e) => { setTitle(e.target.value); setError(""); }}
+            placeholder="e.g. Startup Founder, Software Engineer…"
+            maxLength={50}
+          />
+          <div className={styles.chips}>
+            {TITLE_SUGGESTIONS.map((s) => (
+              <button key={s} className={styles.chip} onClick={() => setTitle(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Socials */}
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>
+            Socials <span className={styles.optional}>(optional — shown to nearby people)</span>
+          </label>
+          {SOCIAL_FIELDS.map(({ key, label, placeholder }) => (
+            <div key={key} className={styles.socialRow}>
+              <span className={styles.socialLabel}>{label}</span>
+              <input
+                className={styles.input}
+                value={socials[key]}
+                onChange={(e) => updateSocial(key, e.target.value)}
+                placeholder={placeholder}
+              />
+            </div>
+          ))}
+        </div>
+
+        {error && <p className={styles.error}>{error}</p>}
+
+        <button className={styles.btnPrimary} onClick={handleSave} disabled={saving}>
+          {saving ? "Saving…" : "Launch Radar →"}
+        </button>
+      </div>
+    </main>
+  );
+}
+
+================================================================================
+FILE: app/setup/page.module.css
+================================================================================
+.loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  color: #64748b;
+  background: #0a0f1a;
+}
+
+.main {
+  min-height: 100vh;
+  background: #0a0f1a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.brand {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #22d3ee;
+  letter-spacing: 0.12em;
+}
+
+.step {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.optional {
+  color: #475569;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.input {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 0.65rem 0.875rem;
+  font-size: 0.875rem;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.input:focus { border-color: #22d3ee; }
+.input::placeholder { color: #334155; }
+
+/* Role grid */
+.roleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.roleBtn {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 0.875rem 0.5rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  transition: border-color 0.15s;
+}
+.roleBtn:hover { border-color: #334155; }
+.roleSelected { border-color: #22d3ee !important; background: #0c1929; }
+
+.roleIcon { font-size: 1.4rem; }
+.roleLabel { font-size: 0.85rem; font-weight: 600; color: #e2e8f0; }
+.roleHint  { font-size: 0.68rem; color: #64748b; font-family: monospace; }
+
+/* Title chips */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.25rem;
+}
+
+.chip {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.65rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.chip:hover { border-color: #22d3ee; color: #22d3ee; }
+
+/* Socials */
+.socialRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.socialLabel {
+  font-size: 0.72rem;
+  color: #475569;
+  font-family: monospace;
+}
+
+.error {
+  color: #f87171;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.btnPrimary {
+  width: 100%;
+  padding: 0.875rem;
+  background: #22d3ee;
+  color: #0a0f1a;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: opacity 0.15s;
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
+}
+.btnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btnPrimary:hover:not(:disabled) { opacity: 0.88; }
+
+================================================================================
+FILE: app/profile/[uid]/page.jsx
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/hooks/useAuth";
+import styles from "./page.module.css";
+
+const SOCIALS = [
+  { key: "linkedin",  label: "LinkedIn",    icon: "in", color: "#0077b5" },
+  { key: "twitter",   label: "Twitter / X", icon: "𝕏",  color: "#ffffff" },
+  { key: "instagram", label: "Instagram",   icon: "Ig", color: "#e1306c" },
+  { key: "whatsapp",  label: "WhatsApp",    icon: "📱", color: "#25d366", isWhatsapp: true },
+  { key: "website",   label: "Website",     icon: "🌐", color: "#22d3ee" },
+];
+
+function SocialLink({ href, color, icon, label }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={styles.socialBtn}
+      style={{ borderColor: color, color }}
+    >
+      <span className={styles.socialIcon}>{icon}</span>
+      {label}
+    </a>
+  );
+}
+
+export default function ProfilePage() {
+  const { uid } = useParams();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.replace("/"); return; }
+    if (uid === user.uid) { router.replace("/radar"); return; }
+
+    getDoc(doc(db, "profiles", uid))
+      .then((snap) => {
+        if (snap.exists()) setProfile(snap.data());
+        else setNotFound(true);
+      })
+      .finally(() => setLoading(false));
+  }, [uid, user, authLoading, router]);
+
+  if (loading || authLoading) {
+    return <div className={styles.loading}>// loading profile...</div>;
+  }
+
+  if (notFound) {
+    return (
+      <div className={styles.loading}>
+        // profile not found
+        <br /><br />
+        <button className={styles.backBtn} onClick={() => router.back()}>← go back</button>
+      </div>
+    );
+  }
+
+  const initials = profile.name
+    ?.split(" ")
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <main className={styles.main}>
+      <header className={styles.header}>
+        <button className={styles.backBtn} onClick={() => router.back()}>← back</button>
+        <span className={styles.brand}>ENTRERADAR</span>
+      </header>
+
+      <div className={styles.hero}>
+        <div className={styles.avatar}>{initials}</div>
+        <h1 className={styles.name}>{profile.name}</h1>
+        <div className={styles.title}>{profile.title || "entrepreneur"}</div>
+        <div className={`${styles.badge} ${profile.role === "entrepreneur" ? styles.badgeGreen : styles.badgeAmber}`}>
+          {profile.role === "entrepreneur" ? "🚀 Entrepreneur" : "👤 Explorer"}
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>// connect</div>
+        <div className={styles.socials}>
+          {SOCIALS.map(({ key, label, icon, color, isWhatsapp }) => {
+            const val = profile[key];
+            if (!val) return null;
+            const href = isWhatsapp
+              ? `https://wa.me/${val.replace(/\D/g, "")}`
+              : val.startsWith("http") ? val : `https://${val}`;
+            return (
+              <SocialLink
+                key={key}
+                href={href}
+                color={color}
+                icon={icon}
+                label={label}
+              />
+            );
+          })}
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>// message</div>
+        <button
+          className={styles.messageBtn}
+          onClick={() => router.push(`/chat/${uid}`)}
+        >
+          💬 Send a Message
+        </button>
+      </div>
+    </main>
+  );
+}
+
+================================================================================
+FILE: app/profile/[uid]/page.module.css
+================================================================================
+.loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  color: #64748b;
+  background: #0a0f1a;
+  font-size: 0.85rem;
+}
+
+.main {
+  min-height: 100vh;
+  background: #0a0f1a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.brand {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #22d3ee;
+  letter-spacing: 0.12em;
+}
+
+.backBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-family: monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+.backBtn:hover { color: #22d3ee; }
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1.5rem 1.5rem;
+  gap: 0.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0e7490, #0c4a6e);
+  border: 2px solid #22d3ee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #22d3ee;
+  margin-bottom: 0.5rem;
+}
+
+.name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.title {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.badge {
+  font-size: 0.72rem;
+  font-family: monospace;
+  padding: 0.2rem 0.75rem;
+  border-radius: 20px;
+  border: 1px solid;
+  margin-top: 0.25rem;
+}
+.badgeGreen { color: #4ade80; border-color: #4ade80; }
+.badgeAmber { color: #fbbf24; border-color: #fbbf24; }
+
+.section {
+  padding: 1.5rem;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.sectionTitle {
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #475569;
+  letter-spacing: 0.08em;
+}
+
+.socials {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.socialBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  background: #0f172a;
+  border: 1px solid;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.socialBtn:hover { opacity: 0.8; }
+
+.socialIcon { font-size: 1rem; width: 20px; text-align: center; }
+
+.messageBtn {
+  width: 100%;
+  padding: 0.875rem;
+  background: #22d3ee;
+  color: #0a0f1a;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.messageBtn:hover { opacity: 0.88; }
+
+================================================================================
+FILE: app/inbox/page.jsx
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/hooks/useAuth";
+import styles from "./page.module.css";
+
+export default function InboxPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [chats, setChats] = useState([]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) { router.replace("/"); return; }
+
+    const q = query(
+      collection(db, "chats"),
+      where("participants", "array-contains", user.uid),
+      orderBy("lastMessageAt", "desc")
+    );
+
+    const unsub = onSnapshot(q, async (snap) => {
+      const chatDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Fetch the other person's profile for each chat
+      const enriched = await Promise.all(
+        chatDocs.map(async (chat) => {
+          const otherUid = chat.participants?.find((p) => p !== user.uid);
+          if (!otherUid) return { ...chat, otherName: "Unknown", otherTitle: "" };
+
+          try {
+            const profileSnap = await getDoc(doc(db, "profiles", otherUid));
+            const profile = profileSnap.exists() ? profileSnap.data() : null;
+            return {
+              ...chat,
+              otherUid,
+              otherName: profile?.name || "Unknown",
+              otherTitle: profile?.title || "entrepreneur",
+            };
+          } catch {
+            return { ...chat, otherUid, otherName: "Unknown", otherTitle: "" };
+          }
+        })
+      );
+
+      setChats(enriched);
+    });
+
+    return () => unsub();
+  }, [user, authLoading, router]);
+
+  if (authLoading) return <div className={styles.loading}>// loading...</div>;
+
+  return (
+    <main className={styles.main}>
+      <header className={styles.header}>
+        <button className={styles.backBtn} onClick={() => router.push("/radar")}>← radar</button>
+        <span className={styles.brand}>INBOX</span>
+        <span className={styles.count}>{chats.length > 0 ? `(${chats.length})` : ""}</span>
+      </header>
+
+      <div className={styles.list}>
+        {chats.length === 0 ? (
+          <div className={styles.empty}>
+            // no conversations yet
+            <br /><br />
+            tap a person on the radar to start chatting
+          </div>
+        ) : (
+          chats.map((chat) => {
+            const initials = chat.otherName
+              .split(" ")
+              .map((w) => w[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase();
+
+            return (
+              <div
+                key={chat.id}
+                className={styles.chatRow}
+                onClick={() => router.push(`/chat/${chat.otherUid}`)}
+              >
+                <div className={styles.avatar}>{initials}</div>
+                <div className={styles.info}>
+                  <div className={styles.name}>{chat.otherName}</div>
+                  <div className={styles.lastMsg}>{chat.lastMessage || "..."}</div>
+                </div>
+                <div className={styles.arrow}>→</div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </main>
+  );
+}
+
+================================================================================
+FILE: app/inbox/page.module.css
+================================================================================
+.loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  color: #64748b;
+  background: #0a0f1a;
+}
+
+.main {
+  min-height: 100vh;
+  background: #0a0f1a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+}
+
+.brand {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #22d3ee;
+  letter-spacing: 0.12em;
+}
+
+.count {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #475569;
+  min-width: 40px;
+  text-align: right;
+}
+
+.backBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-family: monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+.backBtn:hover { color: #22d3ee; }
+
+.list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.empty {
+  text-align: center;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #334155;
+  padding: 3rem 1.5rem;
+  line-height: 1.8;
+}
+
+.chatRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #1e293b;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.chatRow:hover { background: #0f172a; }
+
+.avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0e7490, #0c4a6e);
+  border: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #22d3ee;
+  flex-shrink: 0;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.lastMsg {
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.2rem;
+  font-family: monospace;
+}
+
+.arrow {
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+================================================================================
+FILE: app/chat/[uid]/page.jsx
+================================================================================
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
+import {
+  collection, addDoc, onSnapshot, query,
+  orderBy, serverTimestamp, doc, setDoc, getDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/hooks/useAuth";
+import { getChatId } from "@/lib/chat";
+import styles from "./page.module.css";
+
+export default function ChatPage() {
+  const { uid: otherUid } = useParams();
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+  const [otherProfile, setOtherProfile] = useState(null);
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  const chatId = user ? getChatId(user.uid, otherUid) : null;
+
+  // Load other user's profile
+  useEffect(() => {
+    if (!otherUid) return;
+    getDoc(doc(db, "profiles", otherUid)).then((snap) => {
+      if (snap.exists()) setOtherProfile(snap.data());
+    });
+  }, [otherUid]);
+
+  // Auth guard
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) router.replace("/");
+  }, [user, authLoading, router]);
+
+  // Real-time messages
+  useEffect(() => {
+    if (!chatId) return;
+    const q = query(
+      collection(db, "chats", chatId, "messages"),
+      orderBy("createdAt", "asc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, [chatId]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function sendMessage() {
+    if (!text.trim() || !chatId || sending) return;
+    setSending(true);
+    const msgText = text.trim();
+    setText("");
+    try {
+      // Create/update chat doc
+      await setDoc(
+        doc(db, "chats", chatId),
+        {
+          participants: [user.uid, otherUid],
+          lastMessage: msgText,
+          lastMessageAt: serverTimestamp(),
+          [`names.${user.uid}`]: user.displayName || "You",
+          [`names.${otherUid}`]: otherProfile?.name || "User",
+        },
+        { merge: true }
+      );
+      // Add message
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: user.uid,
+        text: msgText,
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Send failed:", e);
+      setText(msgText); // restore on failure
+    }
+    setSending(false);
+  }
+
+  function handleKey(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }
+
+  if (authLoading) return <div className={styles.loading}>// loading...</div>;
+
+  return (
+    <main className={styles.main}>
+      {/* Header */}
+      <header className={styles.header}>
+        <button className={styles.backBtn} onClick={() => router.back()}>← back</button>
+        <div className={styles.headerCenter}>
+          <div className={styles.headerName}>{otherProfile?.name || "..."}</div>
+          <div className={styles.headerTitle}>{otherProfile?.title || "entrepreneur"}</div>
+        </div>
+        <button
+          className={styles.profileBtn}
+          onClick={() => router.push(`/profile/${otherUid}`)}
+        >
+          view
+        </button>
+      </header>
+
+      {/* Messages */}
+      <div className={styles.messages}>
+        {messages.length === 0 && (
+          <div className={styles.empty}>
+            // no messages yet
+            <br />
+            say hello 👋
+          </div>
+        )}
+        {messages.map((m) => {
+          const isMine = m.senderId === user?.uid;
+          return (
+            <div
+              key={m.id}
+              className={`${styles.bubble} ${isMine ? styles.mine : styles.theirs}`}
+            >
+              {m.text}
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <div className={styles.inputBar}>
+        <textarea
+          className={styles.input}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKey}
+          placeholder="Type a message…"
+          rows={1}
+        />
+        <button
+          className={styles.sendBtn}
+          onClick={sendMessage}
+          disabled={!text.trim() || sending}
+        >
+          ↑
+        </button>
+      </div>
+    </main>
+  );
+}
+
+================================================================================
+FILE: app/chat/[uid]/page.module.css
+================================================================================
+.loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  color: #64748b;
+  background: #0a0f1a;
+}
+
+.main {
+  height: 100dvh;
+  background: #0a0f1a;
+  color: #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.backBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-family: monospace;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+}
+.backBtn:hover { color: #22d3ee; }
+
+.headerCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.headerName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.headerTitle {
+  font-size: 0.68rem;
+  font-family: monospace;
+  color: #64748b;
+}
+
+.profileBtn {
+  background: transparent;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  color: #64748b;
+  font-family: monospace;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+}
+.profileBtn:hover { border-color: #22d3ee; color: #22d3ee; }
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.empty {
+  text-align: center;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #334155;
+  margin: auto;
+  line-height: 1.8;
+}
+
+.bubble {
+  max-width: 75%;
+  padding: 0.6rem 0.875rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.mine {
+  align-self: flex-end;
+  background: #0e7490;
+  color: #f0f9ff;
+  border-bottom-right-radius: 4px;
+}
+
+.theirs {
+  align-self: flex-start;
+  background: #1e293b;
+  color: #e2e8f0;
+  border-bottom-left-radius: 4px;
+}
+
+.inputBar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  color: #e2e8f0;
+  padding: 0.65rem 1rem;
+  font-size: 0.875rem;
+  resize: none;
+  outline: none;
+  font-family: inherit;
+  line-height: 1.4;
+}
+.input:focus { border-color: #22d3ee; }
+.input::placeholder { color: #334155; }
+
+.sendBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #22d3ee;
+  color: #0a0f1a;
+  border: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.sendBtn:disabled { opacity: 0.3; cursor: not-allowed; }
+.sendBtn:hover:not(:disabled) { opacity: 0.85; }
+
+================================================================================
+FILE: lib/firebase.js
+================================================================================
+"use client";
+
+import { initializeApp, getApps } from "firebase/app";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut,
+  browserLocalPersistence,
+  setPersistence,
+} from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
+
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+const googleProvider = new GoogleAuthProvider();
+
+const authReady =
+  typeof window !== "undefined"
+    ? setPersistence(auth, browserLocalPersistence).catch(() => {})
+    : Promise.resolve();
+
+function isMobile() {
+  return (
+    typeof navigator !== "undefined" &&
+    /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  );
+}
+
+export async function signInWithGoogle() {
+  await authReady;
+
+  if (isMobile()) {
+    await signInWithRedirect(auth, googleProvider);
+    return null;
+  }
+
+  const result = await signInWithPopup(auth, googleProvider);
+  return result.user;
+}
+
+export async function signOutUser() {
+  await signOut(auth);
+}
+
+================================================================================
+FILE: lib/geo.js
+================================================================================
+/**
+ * Haversine distance between two lat/lng points — returns meters.
+ */
+export function haversineMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/**
+ * Returns a lat/lng bounding box for a given radius (meters) around a center.
+ * Used to create efficient Firestore queries before filtering precisely with haversine.
+ */
+export function getBoundingBox(lat, lng, radiusMeters) {
+  const latDelta = radiusMeters / 111320;
+  const lngDelta = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
+  return {
+    minLat: lat - latDelta,
+    maxLat: lat + latDelta,
+    minLng: lng - lngDelta,
+    maxLng: lng + lngDelta,
+  };
+}
+
+/**
+ * Human-readable distance string.
+ */
+export function formatDistance(meters) {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+================================================================================
+FILE: lib/chat.js
+================================================================================
+/**
+ * Returns a stable chat ID for two users — always sorted so both sides get the same ID.
+ */
+export function getChatId(uid1, uid2) {
+  return [uid1, uid2].sort().join("_");
+}
+
+================================================================================
+FILE: hooks/useAuth.js
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+
+export function useAuth() {
+  const [user, setUser] = useState(undefined);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!active) return;
+
+      setUser(firebaseUser ?? null);
+
+      try {
+        if (firebaseUser) {
+          const snap = await getDoc(doc(db, "profiles", firebaseUser.uid));
+          if (!active) return;
+          setProfile(snap.exists() ? snap.data() : null);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error("Failed to load auth profile:", error);
+        if (!active) return;
+        setProfile(null);
+      }
+
+      if (active) {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, []);
+
+  function refreshProfile(updated) {
+    setProfile(updated);
+  }
+
+  return { user, profile, loading, refreshProfile };
+}
+
+================================================================================
+FILE: hooks/auth.js
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+
+/**
+ * Listens to Firebase auth state and loads the user's Firestore profile.
+ * user === undefined  → still loading
+ * user === null       → not signed in
+ * profile === null    → signed in but no profile yet → redirect to /setup
+ */
+export function useAuth() {
+  const [user, setUser] = useState(undefined);
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!active) return;
+
+      setUser(firebaseUser ?? null);
+
+      try {
+        if (firebaseUser) {
+          const snap = await getDoc(doc(db, "profiles", firebaseUser.uid));
+          if (!active) return;
+          setProfile(snap.exists() ? snap.data() : null);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error("Failed to load auth profile:", error);
+        if (!active) return;
+        setProfile(null);
+      }
+
+      if (active) {
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, []);
+
+  // Call this after saving profile so radar page refreshes without re-mount
+  function refreshProfile(updated) {
+    setProfile(updated);
+  }
+
+  return { user, profile, loading, refreshProfile };
+}
+
+================================================================================
+FILE: hooks/useLocation.js
+================================================================================
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { db, auth } from "@/lib/firebase";
+import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+
+export function useLocation(profile) {
+  const [position, setPosition] = useState({ lat: null, lng: null });
+  const [error, setError] = useState(null);
+  const [uid, setUid] = useState(null);
+  const watchRef = useRef(null);
+  const uidRef = useRef(null);
+
+  useEffect(() => {
+    if (!profile?.name) return;
+
+    let cancelled = false;
+
+    const user = auth.currentUser;
+    if (!user) { setError("Not authenticated."); return; }
+    uidRef.current = user.uid;
+    setUid(user.uid);
+
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    watchRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        if (cancelled) return;
+        const { latitude: lat, longitude: lng } = pos.coords;
+        setPosition({ lat, lng });
+        try {
+          await setDoc(
+            doc(db, "users", uidRef.current),
+            {
+              name: profile.name,
+              role: profile.role,
+              title: profile.title || "",
+              lat,
+              lng,
+              lastSeen: serverTimestamp(),
+              active: true,
+            },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn("Firestore write failed:", e.message);
+        }
+      },
+      (err) => { setError("Location error: " + err.message); },
+      { enableHighAccuracy: false, maximumAge: 5000, timeout: 15000 }
+    );
+
+    async function cleanup() {
+      if (uidRef.current) {
+        try {
+          await deleteDoc(doc(db, "users", uidRef.current));
+        } catch (_) {}
+      }
+      if (watchRef.current !== null) {
+        navigator.geolocation.clearWatch(watchRef.current);
+      }
+    }
+
+    window.addEventListener("beforeunload", cleanup);
+
+    return () => {
+      cancelled = true;
+      cleanup();
+      window.removeEventListener("beforeunload", cleanup);
+    };
+  }, [profile?.name, profile?.role, profile?.title]);
+
+  return { ...position, error, uid };
+}
+
+================================================================================
+FILE: hooks/useNearby.js
+================================================================================
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { db } from "@/lib/firebase";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
+import { haversineMeters, getBoundingBox } from "@/lib/geo";
+
+export function useNearby(user, rangeMeters) {
+  const [nearby, setNearby] = useState([]);
+  const notifiedRef = useRef(new Set());
+  const unsubRef = useRef(null);
+
+  useEffect(() => {
+    // Guard — user is null until location + auth are ready
+    if (!user?.lat || !user?.lng || !user?.uid) return;
+
+    const box = getBoundingBox(user.lat, user.lng, rangeMeters);
+
+    const q = query(
+      collection(db, "users"),
+      where("role", "==", "entrepreneur"),
+      where("lat", ">=", box.minLat),
+      where("lat", "<=", box.maxLat)
+    );
+
+    if (unsubRef.current) unsubRef.current();
+
+    unsubRef.current = onSnapshot(q, (snapshot) => {
+      const results = [];
+
+      snapshot.forEach((docSnap) => {
+        if (docSnap.id === user.uid) return;
+
+        const data = docSnap.data();
+        if (!data.active) return;
+
+        const dist = haversineMeters(user.lat, user.lng, data.lat, data.lng);
+        if (dist > rangeMeters) return;
+
+        if (data.lng < box.minLng || data.lng > box.maxLng) return;
+
+        results.push({ id: docSnap.id, ...data, dist });
+
+        if (!notifiedRef.current.has(docSnap.id)) {
+          notifiedRef.current.add(docSnap.id);
+          fireNotification(data.name, Math.round(dist));
+        }
+      });
+
+      const currentIds = new Set(results.map((r) => r.id));
+      for (const id of notifiedRef.current) {
+        if (!currentIds.has(id)) notifiedRef.current.delete(id);
+      }
+
+      results.sort((a, b) => a.dist - b.dist);
+      setNearby(results);
+    });
+
+    return () => {
+      if (unsubRef.current) unsubRef.current();
+    };
+  }, [user?.lat, user?.lng, user?.uid, rangeMeters]);
+
+  return { nearby };
+}
+
+function fireNotification(name, distMeters) {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  const dist =
+    distMeters < 1000
+      ? `${distMeters} m`
+      : `${(distMeters / 1000).toFixed(1)} km`;
+
+  new Notification("🚀 Entrepreneur nearby!", {
+    body: `${name} is an entrepreneur near you — ${dist} away`,
+    tag: "er-" + name,
+    renotify: false,
+  });
+}
+
+================================================================================
+FILE: context/LocationContext.jsx
+================================================================================
+"use client";
+
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { db, auth } from "@/lib/firebase";
+import {
+  doc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+  onSnapshot,
+} from "firebase/firestore";
+
+const LocationContext = createContext({ lat: null, lng: null, error: null });
+
+export function useLocationContext() {
+  return useContext(LocationContext);
+}
+
+export function LocationProvider({ children }) {
+  const [position, setPosition] = useState({ lat: null, lng: null });
+  const [error, setError] = useState(null);
+
+  const watchRef = useRef(null);
+  const profileRef = useRef(null);
+  const radarActiveRef = useRef(true);
+  const positionRef = useRef({ lat: null, lng: null });
+  const userRef = useRef(null);
+  const profileUnsubRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function writeLiveLocation(user, profile, lat, lng) {
+      if (!user?.uid || !profile) return;
+
+      try {
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+            uid: user.uid,
+            name: profile.name || "",
+            role: profile.role || "entrepreneur",
+            title: profile.title || "",
+            linkedin: profile.linkedin || "",
+            twitter: profile.twitter || "",
+            instagram: profile.instagram || "",
+            whatsapp: profile.whatsapp || "",
+            website: profile.website || "",
+            lat,
+            lng,
+            lastSeen: serverTimestamp(),
+            active: true,
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.warn("Location write failed:", e.message);
+      }
+    }
+
+    async function removeLiveLocation(uid) {
+      if (!uid) return;
+      try {
+        await deleteDoc(doc(db, "users", uid));
+      } catch (_) {}
+    }
+
+    async function start() {
+      const user = await new Promise((resolve) => {
+        const unsub = auth.onAuthStateChanged((u) => {
+          unsub();
+          resolve(u);
+        });
+      });
+
+      if (!user || cancelled) return;
+      userRef.current = user;
+
+      profileUnsubRef.current = onSnapshot(doc(db, "profiles", user.uid), async (snap) => {
+        if (!snap.exists() || cancelled) return;
+
+        const profile = snap.data();
+        const wasActive = radarActiveRef.current;
+        const isActive = profile.radarActive ?? true;
+
+        profileRef.current = profile;
+        radarActiveRef.current = isActive;
+
+        // Radar turned ON -> write current position immediately
+        if (!wasActive && isActive && positionRef.current.lat != null && positionRef.current.lng != null) {
+          await writeLiveLocation(
+            user,
+            profile,
+            positionRef.current.lat,
+            positionRef.current.lng
+          );
+        }
+
+        // Radar turned OFF -> remove from live users immediately
+        if (wasActive && !isActive) {
+          await removeLiveLocation(user.uid);
+        }
+      });
+
+      if (!navigator.geolocation) {
+        setError("Geolocation not supported.");
+        return;
+      }
+
+      watchRef.current = navigator.geolocation.watchPosition(
+        async (pos) => {
+          if (cancelled) return;
+
+          const { latitude: lat, longitude: lng } = pos.coords;
+
+          setPosition({ lat, lng });
+          positionRef.current = { lat, lng };
+
+          if (!radarActiveRef.current) return;
+
+          const profile = profileRef.current;
+          if (!profile) return;
+
+          await writeLiveLocation(user, profile, lat, lng);
+        },
+        (err) => setError("Location error: " + err.message),
+        {
+          enableHighAccuracy: false,
+          maximumAge: 5000,
+          timeout: 15000,
+        }
+      );
+    }
+
+    start();
+
+    function syncCleanup() {
+      cancelled = true;
+
+      if (watchRef.current !== null) {
+        navigator.geolocation.clearWatch(watchRef.current);
+        watchRef.current = null;
+      }
+
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+        profileUnsubRef.current = null;
+      }
+
+      const uid = userRef.current?.uid;
+      if (uid) {
+        deleteDoc(doc(db, "users", uid)).catch(() => {});
+      }
+    }
+
+    window.addEventListener("beforeunload", syncCleanup);
+
+    return () => {
+      syncCleanup();
+      window.removeEventListener("beforeunload", syncCleanup);
+    };
+  }, []);
+
+  return (
+    <LocationContext.Provider value={{ ...position, error }}>
+      {children}
+    </LocationContext.Provider>
+  );
+}
+
+================================================================================
+FILE: context/ChatNotificationContext.jsx
+================================================================================
+"use client";
+
+import { createContext, useEffect, useRef } from "react";
+import { db, auth } from "@/lib/firebase";
+import {
+  collection, query, where, onSnapshot,
+  orderBy, limit, doc, getDoc,
+} from "firebase/firestore";
+import { usePathname } from "next/navigation";
+
+export const ChatNotificationContext = createContext(null);
+
+export function ChatNotificationProvider({ children }) {
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  const lastMsgRef = useRef({});
+  const innerUnsubsRef = useRef({});
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
+    let outerUnsub = null;
+    let user = null;
+
+    // Wait for auth
+    const authUnsub = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!user && firebaseUser) {
+        user = firebaseUser;
+        setupListeners(user);
+      }
+    });
+
+    async function setupListeners(user) {
+      // Request permission if needed
+      if (Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+
+      if (Notification.permission !== "granted") return;
+
+      const q = query(
+        collection(db, "chats"),
+        where("participants", "array-contains", user.uid)
+      );
+
+      outerUnsub = onSnapshot(q, (snap) => {
+        snap.docs.forEach((chatDoc) => {
+          const chatId = chatDoc.id;
+
+          // Already subscribed to this chat
+          if (innerUnsubsRef.current[chatId]) return;
+
+          const chatData = chatDoc.data();
+          const otherUid = chatData.participants?.find((p) => p !== user.uid);
+
+          const msgQ = query(
+            collection(db, "chats", chatId, "messages"),
+            orderBy("createdAt", "desc"),
+            limit(1)
+          );
+
+          // Seed the last seen message to avoid notifying old messages on mount
+          let seeded = false;
+
+          innerUnsubsRef.current[chatId] = onSnapshot(msgQ, async (msgSnap) => {
+            if (msgSnap.empty) return;
+
+            const latest = msgSnap.docs[0];
+            const msg = latest.data();
+
+            // First snapshot — just seed, don't notify
+            if (!seeded) {
+              seeded = true;
+              lastMsgRef.current[chatId] = latest.id;
+              return;
+            }
+
+            // Already notified this message
+            if (lastMsgRef.current[chatId] === latest.id) return;
+
+            // Skip own messages
+            if (msg.senderId === user.uid) return;
+
+            // Skip if no timestamp yet (optimistic write)
+            if (!msg.createdAt) return;
+
+            // Skip if user is viewing this chat
+            if (pathnameRef.current === `/chat/${otherUid}`) return;
+
+            // Mark notified
+            lastMsgRef.current[chatId] = latest.id;
+
+            // Get sender name
+            let senderName = "Someone";
+            try {
+              const snap = await getDoc(doc(db, "profiles", msg.senderId));
+              if (snap.exists()) senderName = snap.data().name || "Someone";
+            } catch (_) {}
+
+            // Fire notification
+            try {
+              new Notification(`💬 ${senderName}`, {
+                body: msg.text,
+                tag: `chat-${chatId}`,
+                renotify: true,
+              });
+            } catch (e) {
+              console.error("Notification error:", e);
+            }
+          });
+        });
+      });
+    }
+
+    return () => {
+      authUnsub();
+      if (outerUnsub) outerUnsub();
+      Object.values(innerUnsubsRef.current).forEach((fn) => fn());
+      innerUnsubsRef.current = {};
+    };
+  }, []);
+
+  return (
+    <ChatNotificationContext.Provider value={null}>
+      {children}
+    </ChatNotificationContext.Provider>
+  );
+}
+
+================================================================================
+FILE: components/RadarToggle.jsx
+================================================================================
+"use client";
+
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { doc, updateDoc, getDoc } from "firebase/firestore";
+import { db, auth } from "@/lib/firebase";
+import styles from "./RadarToggle.module.css";
+
+// Don't show on landing or setup pages
+const HIDDEN_ON = ["/", "/setup"];
+
+export default function RadarToggle() {
+  const pathname = usePathname();
+  const [active, setActive] = useState(false);
+  const [uid, setUid] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(async (user) => {
+      if (!user) { setReady(false); return; }
+      setUid(user.uid);
+      try {
+        const snap = await getDoc(doc(db, "profiles", user.uid));
+        if (snap.exists()) {
+          setActive(snap.data().radarActive ?? true);
+        }
+      } catch (_) {}
+      setReady(true);
+    });
+    return unsub;
+  }, []);
+
+  async function toggle() {
+    if (!uid) return;
+    const next = !active;
+    setActive(next);
+    try {
+      await updateDoc(doc(db, "profiles", uid), { radarActive: next });
+
+      // If turning off — remove from live users immediately
+      if (!next) {
+        const { deleteDoc, doc: firestoreDoc } = await import("firebase/firestore");
+        await deleteDoc(firestoreDoc(db, "users", uid));
+      }
+    } catch (e) {
+      console.warn("Toggle failed:", e.message);
+      setActive(!next); // revert on error
+    }
+  }
+
+  if (!ready || HIDDEN_ON.includes(pathname)) return null;
+
+  return (
+    <button
+      className={`${styles.btn} ${active ? styles.active : styles.inactive}`}
+      onClick={toggle}
+      title={active ? "You are visible on radar — click to hide" : "You are hidden — click to appear on radar"}
+    >
+      <span className={styles.dot} />
+      {active ? "ON RADAR" : "OFF RADAR"}
+    </button>
+  );
+}
+
+================================================================================
+FILE: components/RadarToggle.module.css
+================================================================================
+.btn {
+  position: fixed;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  border: 1px solid;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+}
+
+.active {
+  background: rgba(34, 211, 238, 0.12);
+  border-color: #22d3ee;
+  color: #22d3ee;
+}
+
+.inactive {
+  background: rgba(100, 116, 139, 0.12);
+  border-color: #475569;
+  color: #475569;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.active .dot {
+  background: #22d3ee;
+  box-shadow: 0 0 6px #22d3ee;
+  animation: pulse 1.5s infinite;
+}
+
+.inactive .dot {
+  background: #475569;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+================================================================================
+FILE: components/RadarCanvas.jsx
+================================================================================
+"use client";
+
+import { useEffect, useRef } from "react";
+import { haversineMeters } from "@/lib/geo";
+
+const W = 600;
+const CX = W / 2;
+const CY = W / 2;
+const R = W / 2 - 4;
+
+/**
+ * Animated radar canvas.
+ * Renders sweep line + dots for nearby users.
+ */
+export default function RadarCanvas({ userLat, userLng, peers, rangeMeters }) {
+  const canvasRef = useRef(null);
+  const angleRef = useRef(0);
+  const frameRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+
+    function draw() {
+      ctx.clearRect(0, 0, W, W);
+
+      // Background circle
+      ctx.beginPath();
+      ctx.arc(CX, CY, R, 0, Math.PI * 2);
+      ctx.fillStyle = "#0a1019";
+      ctx.fill();
+
+      // Rings
+      [0.25, 0.5, 0.75, 1].forEach((f) => {
+        ctx.beginPath();
+        ctx.arc(CX, CY, R * f, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0,255,140,0.07)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // Crosshair lines
+      ctx.strokeStyle = "rgba(0,255,140,0.05)";
+      ctx.lineWidth = 1;
+      [
+        [CX, CY - R, CX, CY + R],
+        [CX - R, CY, CX + R, CY],
+      ].forEach(([x1, y1, x2, y2]) => {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      });
+
+      // Sweep
+      ctx.save();
+      ctx.translate(CX, CY);
+      ctx.rotate(angleRef.current);
+
+      const grad = ctx.createLinearGradient(0, 0, R, 0);
+      grad.addColorStop(0, "rgba(0,255,140,0)");
+      grad.addColorStop(0.5, "rgba(0,255,140,0.03)");
+      grad.addColorStop(1, "rgba(0,255,140,0.16)");
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, R, -0.45, 0.45);
+      ctx.closePath();
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(R, 0);
+      ctx.strokeStyle = "rgba(0,255,140,0.75)";
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = "#00ff8c";
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+      ctx.restore();
+
+      // Range ring (dashed)
+      ctx.beginPath();
+      ctx.arc(CX, CY, R * 0.42, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(0,255,140,0.18)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Peer dots
+      if (userLat && userLng) {
+        const maxPlot = rangeMeters * 2.4;
+
+        peers.forEach((p) => {
+          const dist = haversineMeters(userLat, userLng, p.lat, p.lng);
+          if (dist > maxPlot) return;
+
+          const ratio = Math.min(dist / maxPlot, 1);
+          const dLat = p.lat - userLat;
+          const dLng = p.lng - userLng;
+          const mag = Math.sqrt(dLat ** 2 + dLng ** 2) || 1;
+          const px = CX + (dLng / mag) * ratio * R * 0.92;
+          const py = CY - (dLat / mag) * ratio * R * 0.92;
+
+          const inRange = dist <= rangeMeters;
+          ctx.shadowBlur = inRange ? 10 : 0;
+          ctx.shadowColor = "#00ff8c";
+
+          ctx.beginPath();
+          ctx.arc(px, py, inRange ? 5 : 3, 0, Math.PI * 2);
+          ctx.fillStyle = inRange ? "#00ff8c" : "#5a7a60";
+          ctx.fill();
+
+          if (inRange) {
+            ctx.shadowBlur = 0;
+            ctx.beginPath();
+            ctx.arc(px, py, 10, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(0,255,140,0.22)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+
+          ctx.shadowBlur = 0;
+        });
+      }
+
+      // Center dot (user)
+      ctx.shadowColor = "#00ff8c";
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(CX, CY, 6, 0, Math.PI * 2);
+      ctx.fillStyle = "#00ff8c";
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(CX, CY, 16, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(0,255,140,0.28)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Range label
+      ctx.font = "20px 'Share Tech Mono', monospace";
+      ctx.fillStyle = "rgba(0,255,140,0.28)";
+      ctx.textAlign = "right";
+      const label =
+        rangeMeters < 1000
+          ? `${rangeMeters}m`
+          : `${(rangeMeters / 1000).toFixed(1)}km`;
+      ctx.fillText(label, CX + R * 0.42 - 6, CY - 8);
+
+      angleRef.current += 0.022;
+      if (angleRef.current > Math.PI * 2) angleRef.current -= Math.PI * 2;
+
+      frameRef.current = requestAnimationFrame(draw);
+    }
+
+    draw();
+
+    return () => {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+    };
+  }, [userLat, userLng, peers, rangeMeters]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      width={W}
+      height={W}
+      style={{ width: "100%", height: "100%", borderRadius: "50%", display: "block" }}
+    />
+  );
+}
+
+================================================================================
+FILE: components/NearbyList.jsx
+================================================================================
+"use client";
+
+import { useRouter } from "next/navigation";
+import { formatDistance } from "@/lib/geo";
+import styles from "./NearbyList.module.css";
+
+const SOCIAL_ICONS = [
+  { key: "linkedin", label: "Li" },
+  { key: "twitter", label: "𝕏" },
+  { key: "instagram", label: "Ig" },
+  { key: "website", label: "🌐" },
+];
+
+export default function NearbyList({ nearby }) {
+  const router = useRouter();
+
+  if (!nearby || nearby.length === 0) {
+    return (
+      <div className={styles.empty}>
+        scanning for entrepreneurs...
+        <br /><br />
+        adjust range or wait for others to join
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.list}>
+      {nearby.map((p) => (
+        <div
+          key={p.id}
+          className={styles.card}
+          onClick={() => router.push(`/profile/${p.id}`)}
+          style={{ cursor: "pointer" }}
+        >
+          <div className={styles.avatar}>
+            {p.name
+              ?.split(" ")
+              .map((w) => w[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()}
+          </div>
+
+          <div className={styles.info}>
+            <div className={styles.name}>{p.name}</div>
+
+            <div className={styles.dist}>
+              {formatDistance(p.dist)} away · {p.title || "entrepreneur"}
+            </div>
+
+            <div className={styles.socials}>
+              {SOCIAL_ICONS.map(({ key, label }) =>
+                p[key] ? (
+                  <a
+                    key={key}
+                    href={
+                      p[key].startsWith("http")
+                        ? p[key]
+                        : `https://${p[key]}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.socialLink}
+                    title={key}
+                    onClick={(e) => e.stopPropagation()} // 🔥 IMPORTANT
+                  >
+                    {label}
+                  </a>
+                ) : null
+              )}
+
+              {p.whatsapp && (
+                <a
+                  href={`https://wa.me/${p.whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.socialLink}
+                  title="whatsapp"
+                  onClick={(e) => e.stopPropagation()} // 🔥 IMPORTANT
+                >
+                  📱
+                </a>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.ping} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+================================================================================
+FILE: components/NearbyList.module.css
+================================================================================
+.list { display: flex; flex-direction: column; gap: 8px; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: slideIn 0.3s ease;
+  transition: border-color 0.2s;
+}
+
+.card:hover { border-color: rgba(0, 255, 140, 0.35); }
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 255, 140, 0.08);
+  border: 1px solid rgba(0, 255, 140, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--green);
+  flex-shrink: 0;
+}
+
+.info { flex: 1; }
+
+.name { font-size: 14px; font-weight: 500; color: var(--text); }
+
+.dist {
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.ping {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  flex-shrink: 0;
+  animation: ping 2s ease-in-out infinite;
+}
+
+@keyframes ping {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(1.4); }
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 28px 0;
+  line-height: 1.6;
+}
+
+
+.socials {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.socialLink {
+  font-size: 0.68rem;
+  font-family: monospace;
+  color: #22d3ee;
+  text-decoration: none;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  transition: border-color 0.15s;
+}
+.socialLink:hover { border-color: #22d3ee; }
+
+================================================================================
+FILE: components/EditProfileModal.jsx
+================================================================================
+"use client";
+
+import { useState } from "react";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import styles from "./EditProfileModal.module.css";
+
+const SOCIAL_FIELDS = [
+  { key: "linkedin",  label: "LinkedIn",    placeholder: "linkedin.com/in/yourhandle" },
+  { key: "twitter",   label: "Twitter / X", placeholder: "x.com/yourhandle" },
+  { key: "instagram", label: "Instagram",   placeholder: "instagram.com/yourhandle" },
+  { key: "whatsapp",  label: "WhatsApp",    placeholder: "+91 98765 43210" },
+  { key: "website",   label: "Website",     placeholder: "https://yoursite.com" },
+];
+
+export default function EditProfileModal({ user, profile, onClose, onSaved }) {
+  const [name, setName]   = useState(profile.name || "");
+  const [role, setRole]   = useState(profile.role || "entrepreneur");
+  const [title, setTitle] = useState(profile.title || "");
+  const [socials, setSocials] = useState({
+    linkedin:  profile.linkedin  || "",
+    twitter:   profile.twitter   || "",
+    instagram: profile.instagram || "",
+    whatsapp:  profile.whatsapp  || "",
+    website:   profile.website   || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError]   = useState("");
+
+  function updateSocial(key, val) {
+    setSocials((prev) => ({ ...prev, [key]: val }));
+  }
+
+  async function handleSave() {
+    if (!name.trim()) { setError("Name is required."); return; }
+    if (!title.trim()) { setError("Radar title is required."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      const updated = {
+        name: name.trim(),
+        role,
+        title: title.trim(),
+        ...Object.fromEntries(Object.entries(socials).map(([k, v]) => [k, v.trim()])),
+        updatedAt: serverTimestamp(),
+      };
+      await updateDoc(doc(db, "profiles", user.uid), updated);
+      onSaved(updated);
+      onClose();
+    } catch {
+      setError("Save failed. Try again.");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={styles.modal}>
+        <div className={styles.modalHeader}>
+          <span className={styles.modalTitle}>// edit profile</span>
+          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+        </div>
+
+        <div className={styles.body}>
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Name</label>
+            <input className={styles.input} value={name}
+              onChange={(e) => { setName(e.target.value); setError(""); }}
+              maxLength={40} />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Radar Mode</label>
+            <div className={styles.roleRow}>
+              {[
+                { value: "entrepreneur", icon: "🚀", label: "Entrepreneur" },
+                { value: "explorer",     icon: "👤", label: "Explorer" },
+              ].map((r) => (
+                <button
+                  key={r.value}
+                  className={`${styles.roleBtn} ${role === r.value ? styles.roleSelected : ""}`}
+                  onClick={() => setRole(r.value)}
+                >
+                  {r.icon} {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Radar Title</label>
+            <input className={styles.input} value={title}
+              onChange={(e) => { setTitle(e.target.value); setError(""); }}
+              placeholder="e.g. Startup Founder"
+              maxLength={50} />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>Socials</label>
+            {SOCIAL_FIELDS.map(({ key, label, placeholder }) => (
+              <div key={key} className={styles.socialRow}>
+                <span className={styles.socialLabel}>{label}</span>
+                <input className={styles.input} value={socials[key]}
+                  placeholder={placeholder}
+                  onChange={(e) => updateSocial(key, e.target.value)} />
+              </div>
+            ))}
+          </div>
+
+          {error && <p className={styles.error}>{error}</p>}
+
+          <button className={styles.saveBtn} onClick={handleSave} disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+================================================================================
+FILE: components/EditProfileModal.module.css
+================================================================================
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.modal {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.modalTitle {
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #22d3ee;
+  letter-spacing: 0.06em;
+}
+
+.closeBtn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+.closeBtn:hover { color: #e2e8f0; }
+
+.body {
+  overflow-y: auto;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.label {
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.input {
+  background: #0a0f1a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  color: #e2e8f0;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.875rem;
+  width: 100%;
+  outline: none;
+}
+.input:focus { border-color: #22d3ee; }
+
+.roleRow {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.roleBtn {
+  flex: 1;
+  padding: 0.5rem;
+  background: #0a0f1a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.roleSelected { border-color: #22d3ee; color: #22d3ee; }
+
+.socialRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.4rem;
+}
+
+.socialLabel {
+  font-size: 0.68rem;
+  color: #475569;
+  font-family: monospace;
+}
+
+.error {
+  color: #f87171;
+  font-size: 0.78rem;
+  font-family: monospace;
+}
+
+.saveBtn {
+  width: 100%;
+  padding: 0.8rem;
+  background: #22d3ee;
+  color: #0a0f1a;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+}
+.saveBtn:disabled { opacity: 0.5; }
+.saveBtn:hover:not(:disabled) { opacity: 0.88; }
+
+================================================================================
+END OF CODEBASE
+================================================================================
+Date Generated: April 13, 2026
+Total Files: 40
+All code compiled into single document.
+================================================================================

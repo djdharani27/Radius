@@ -6,9 +6,9 @@ import styles from "./NearbyList.module.css";
 
 const SOCIAL_ICONS = [
   { key: "linkedin", label: "Li" },
-  { key: "twitter", label: "𝕏" },
+  { key: "twitter", label: "X" },
   { key: "instagram", label: "Ig" },
-  { key: "website", label: "🌐" },
+  { key: "website", label: "Web" },
 ];
 
 export default function NearbyList({ nearby }) {
@@ -17,7 +17,7 @@ export default function NearbyList({ nearby }) {
   if (!nearby || nearby.length === 0) {
     return (
       <div className={styles.empty}>
-        scanning for entrepreneurs...
+        scanning for professionals...
         <br /><br />
         adjust range or wait for others to join
       </div>
@@ -46,7 +46,7 @@ export default function NearbyList({ nearby }) {
             <div className={styles.name}>{p.name}</div>
 
             <div className={styles.dist}>
-              {formatDistance(p.dist)} away · {p.title || "entrepreneur"}
+              {formatDistance(p.dist)} away · {p.title || "professional"}
             </div>
 
             <div className={styles.socials}>
@@ -54,16 +54,12 @@ export default function NearbyList({ nearby }) {
                 p[key] ? (
                   <a
                     key={key}
-                    href={
-                      p[key].startsWith("http")
-                        ? p[key]
-                        : `https://${p[key]}`
-                    }
+                    href={p[key].startsWith("http") ? p[key] : `https://${p[key]}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={styles.socialLink}
                     title={key}
-                    onClick={(e) => e.stopPropagation()} // 🔥 IMPORTANT
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {label}
                   </a>
@@ -77,9 +73,9 @@ export default function NearbyList({ nearby }) {
                   rel="noopener noreferrer"
                   className={styles.socialLink}
                   title="whatsapp"
-                  onClick={(e) => e.stopPropagation()} // 🔥 IMPORTANT
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  📱
+                  WA
                 </a>
               )}
             </div>

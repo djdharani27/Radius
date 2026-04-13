@@ -1,99 +1,207 @@
 "use client";
 
-import { createContext, useEffect, useRef } from "react";
-import { db, auth } from "@/lib/firebase";
+import { createContext, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { auth, db } from "@/lib/firebase";
 import {
-  collection, query, where, onSnapshot,
-  orderBy, limit,
+  collection,
+  doc,
+  getDoc,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
 } from "firebase/firestore";
-import { usePathname } from "next/navigation";
 
 export const ChatNotificationContext = createContext(null);
+const TOAST_MS = 4500;
 
 export function ChatNotificationProvider({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const pathnameRef = useRef(pathname);
   const lastMsgRef = useRef({});
   const innerUnsubsRef = useRef({});
+  const chatsHydratedRef = useRef(false);
+  const toastTimersRef = useRef({});
+  const [toasts, setToasts] = useState([]);
 
-  // Keep pathnameRef in sync without re-running the effect
+  function dismissToast(id) {
+    if (toastTimersRef.current[id]) {
+      clearTimeout(toastTimersRef.current[id]);
+      delete toastTimersRef.current[id];
+    }
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }
+
+  function pushToast(toast) {
+    setToasts((current) => {
+      const next = [toast, ...current.filter((item) => item.id !== toast.id)];
+      return next.slice(0, 4);
+    });
+
+    if (toastTimersRef.current[toast.id]) {
+      clearTimeout(toastTimersRef.current[toast.id]);
+    }
+
+    toastTimersRef.current[toast.id] = setTimeout(() => {
+      dismissToast(toast.id);
+    }, TOAST_MS);
+  }
+
   useEffect(() => {
     pathnameRef.current = pathname;
   }, [pathname]);
 
   useEffect(() => {
     let outerUnsub = null;
+    let currentUid = null;
 
-    // Wait for Firebase auth to resolve
-    const authUnsub = auth.onAuthStateChanged((user) => {
-      if (!user) return;
+    const authUnsub = auth.onAuthStateChanged(async (firebaseUser) => {
+      if (!firebaseUser || currentUid === firebaseUser.uid) return;
+      currentUid = firebaseUser.uid;
+      chatsHydratedRef.current = false;
+      await setupListeners(firebaseUser.uid);
+    });
 
-      if (Notification.permission !== "granted") return;
+    async function setupListeners(uid) {
+      const supportsBrowserNotifications =
+        typeof window !== "undefined" && "Notification" in window;
 
-      const q = query(
+      if (
+        supportsBrowserNotifications &&
+        Notification.permission === "default"
+      ) {
+        await Notification.requestPermission();
+      }
+
+      const chatsQuery = query(
         collection(db, "chats"),
-        where("participants", "array-contains", user.uid)
+        where("participants", "array-contains", uid)
       );
 
-      outerUnsub = onSnapshot(q, (snap) => {
-        snap.docs.forEach((chatDoc) => {
-          const chatId = chatDoc.id;
-          const data = chatDoc.data();
+      outerUnsub = onSnapshot(chatsQuery, (chatSnap) => {
+        const seedOnFirstLoad = !chatsHydratedRef.current;
 
-          // Already listening to this chat — skip
-          if (innerUnsubsRef.current[chatId]) return;
+        chatSnap.docChanges().forEach((change) => {
+          const chatId = change.doc.id;
 
-          const otherUid = data.participants?.find((p) => p !== user.uid);
+          if (change.type === "removed") {
+            innerUnsubsRef.current[chatId]?.();
+            delete innerUnsubsRef.current[chatId];
+            delete lastMsgRef.current[chatId];
+            return;
+          }
 
-          const msgQ = query(
+          if (change.type !== "added" || innerUnsubsRef.current[chatId]) return;
+
+          const chatData = change.doc.data();
+          const otherUid = chatData.participants?.find((participant) => participant !== uid);
+          const latestMessageQuery = query(
             collection(db, "chats", chatId, "messages"),
             orderBy("createdAt", "desc"),
             limit(1)
           );
 
-          innerUnsubsRef.current[chatId] = onSnapshot(msgQ, (msgSnap) => {
+          let shouldSeedFirstSnapshot = seedOnFirstLoad;
+
+          innerUnsubsRef.current[chatId] = onSnapshot(latestMessageQuery, async (msgSnap) => {
             if (msgSnap.empty) return;
 
-            const latest = msgSnap.docs[0];
-            const msg = latest.data();
+            const latestDoc = msgSnap.docs[0];
+            const latestMessage = latestDoc.data();
 
-            // Skip own messages
-            if (msg.senderId === user.uid) return;
+            if (shouldSeedFirstSnapshot) {
+              shouldSeedFirstSnapshot = false;
+              lastMsgRef.current[chatId] = latestDoc.id;
+              return;
+            }
 
-            // Skip already notified
-            if (lastMsgRef.current[chatId] === latest.id) return;
-            lastMsgRef.current[chatId] = latest.id;
-
-            // Skip optimistic writes (no timestamp yet)
-            if (!msg.createdAt) return;
-
-            // Skip if user is currently viewing this chat
+            if (lastMsgRef.current[chatId] === latestDoc.id) return;
+            if (latestMessage.senderId === uid) return;
+            if (!latestMessage.createdAt) return;
             if (pathnameRef.current === `/chat/${otherUid}`) return;
 
-            const senderName = data.names?.[msg.senderId] || "Someone";
+            lastMsgRef.current[chatId] = latestDoc.id;
 
-            new Notification("💬 New message", {
-              body: `${senderName}: ${msg.text}`,
-              tag: `chat-${chatId}`,
-              renotify: true,
+            let senderName = "Someone";
+            try {
+              const senderSnap = await getDoc(doc(db, "profiles", latestMessage.senderId));
+              if (senderSnap.exists()) {
+                senderName = senderSnap.data().name || "Someone";
+              }
+            } catch (_) {}
+
+            pushToast({
+              id: `${chatId}-${latestDoc.id}`,
+              chatId,
+              otherUid,
+              senderName,
+              text: latestMessage.text,
             });
+
+            if (
+              supportsBrowserNotifications &&
+              Notification.permission === "granted"
+            ) {
+              try {
+                new Notification(`Message from ${senderName}`, {
+                  body: latestMessage.text,
+                  tag: `chat-${chatId}`,
+                  renotify: true,
+                });
+              } catch (error) {
+                console.error("Notification error:", error);
+              }
+            }
           });
         });
+
+        chatsHydratedRef.current = true;
       });
-    });
+    }
 
     return () => {
       authUnsub();
-      if (outerUnsub) outerUnsub();
-      // Clean up all inner listeners
-      Object.values(innerUnsubsRef.current).forEach((fn) => fn());
+      outerUnsub?.();
+      Object.values(innerUnsubsRef.current).forEach((unsubscribe) => unsubscribe());
       innerUnsubsRef.current = {};
+      lastMsgRef.current = {};
+      chatsHydratedRef.current = false;
+      Object.values(toastTimersRef.current).forEach((timer) => clearTimeout(timer));
+      toastTimersRef.current = {};
     };
-  }, []); // runs once — pathnameRef handles pathname changes
+  }, []);
 
   return (
     <ChatNotificationContext.Provider value={null}>
       {children}
+      <div className="toastStack" aria-live="polite" aria-atomic="false">
+        {toasts.map((toast) => (
+          <div key={toast.id} className="toastCard">
+            <button
+              type="button"
+              className="toastMain"
+              onClick={() => {
+                dismissToast(toast.id);
+                router.push(`/chat/${toast.otherUid}`);
+              }}
+            >
+              <span className="toastEyebrow">New message</span>
+              <span className="toastTitle">{toast.senderName}</span>
+              <span className="toastBody">{toast.text}</span>
+            </button>
+            <button
+              type="button"
+              className="toastClose"
+              onClick={() => dismissToast(toast.id)}
+            >
+              close
+            </button>
+          </div>
+        ))}
+      </div>
     </ChatNotificationContext.Provider>
   );
 }

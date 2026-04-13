@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
-import { signInWithGoogle, handleRedirectResult } from "@/lib/firebase";
+import { signInWithGoogle } from "@/lib/firebase";
 import styles from "./page.module.css";
 
 export default function LandingPage() {
@@ -13,27 +13,39 @@ export default function LandingPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    handleRedirectResult().catch(() => {});
-  }, []);
-
-  useEffect(() => {
     if (loading) return;
-    if (user && profile) router.replace("/radar");
-    else if (user && !profile) router.replace("/setup");
+    if (!user) return;
+
+    if (profile) {
+      router.replace("/radar");
+      return;
+    }
+
+    router.replace("/setup");
   }, [user, profile, loading, router]);
 
   async function handleSignIn() {
     setBusy(true);
     setError("");
+
     try {
       await signInWithGoogle();
-    } catch {
+    } catch (e) {
+      console.error("Sign-in failed:", e);
       setError("Sign-in failed. Please try again.");
       setBusy(false);
     }
   }
 
-  if (loading) return <div className={styles.boot}>// initializing...</div>;
+  useEffect(() => {
+    if (!loading) {
+      setBusy(false);
+    }
+  }, [loading]);
+
+  if (loading) {
+    return <div className={styles.boot}>// initializing...</div>;
+  }
 
   return (
     <main className={styles.main}>
@@ -41,25 +53,29 @@ export default function LandingPage() {
         <div className={styles.logoMark}>
           <div className={styles.logoPulse} />
         </div>
-        <h1 className={styles.logoTitle}>ENTRERADAR</h1>
-        <p className={styles.logoSub}>proximity network</p>
+        <h1 className={styles.logoTitle}>RADIUS</h1>
+        <p className={styles.logoSub}>professional proximity network</p>
       </div>
 
       <div className={styles.card}>
         <div className={styles.cardTitle}>// sign in to continue</div>
         <p className={styles.cardDesc}>
-          Discover entrepreneurs and builders around you — in real time.
+          Discover professionals around you in real time.
         </p>
 
         {error && <p className={styles.error}>{error}</p>}
 
-        <button className={styles.googleBtn} onClick={handleSignIn} disabled={busy}>
+        <button
+          className={styles.googleBtn}
+          onClick={handleSignIn}
+          disabled={busy}
+        >
           <GoogleIcon />
-          {busy ? "Redirecting…" : "Continue with Google"}
+          {busy ? "Redirecting..." : "Continue with Google"}
         </button>
 
         <p className={styles.terms}>
-          By continuing you allow EntreRadar to use your approximate location while active.
+          By continuing you allow Radius to use your approximate location while active.
         </p>
       </div>
     </main>

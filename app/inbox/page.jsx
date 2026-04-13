@@ -14,7 +14,10 @@ export default function InboxPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.replace("/"); return; }
+    if (!user) {
+      router.replace("/");
+      return;
+    }
 
     const q = query(
       collection(db, "chats"),
@@ -25,7 +28,6 @@ export default function InboxPage() {
     const unsub = onSnapshot(q, async (snap) => {
       const chatDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-      // Fetch the other person's profile for each chat
       const enriched = await Promise.all(
         chatDocs.map(async (chat) => {
           const otherUid = chat.participants?.find((p) => p !== user.uid);
@@ -38,7 +40,7 @@ export default function InboxPage() {
               ...chat,
               otherUid,
               otherName: profile?.name || "Unknown",
-              otherTitle: profile?.title || "entrepreneur",
+              otherTitle: profile?.title || "professional",
             };
           } catch {
             return { ...chat, otherUid, otherName: "Unknown", otherTitle: "" };
@@ -57,7 +59,7 @@ export default function InboxPage() {
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={() => router.push("/radar")}>← radar</button>
+        <button className={styles.backBtn} onClick={() => router.push("/radar")}>radar</button>
         <span className={styles.brand}>INBOX</span>
         <span className={styles.count}>{chats.length > 0 ? `(${chats.length})` : ""}</span>
       </header>
@@ -67,7 +69,7 @@ export default function InboxPage() {
           <div className={styles.empty}>
             // no conversations yet
             <br /><br />
-            tap a person on the radar to start chatting
+            tap a profile on the radar to start chatting
           </div>
         ) : (
           chats.map((chat) => {
@@ -89,7 +91,7 @@ export default function InboxPage() {
                   <div className={styles.name}>{chat.otherName}</div>
                   <div className={styles.lastMsg}>{chat.lastMessage || "..."}</div>
                 </div>
-                <div className={styles.arrow}>→</div>
+                <div className={styles.arrow}>go</div>
               </div>
             );
           })

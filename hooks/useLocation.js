@@ -36,7 +36,7 @@ export function useLocation(profile) {
             doc(db, "users", uidRef.current),
             {
               name: profile.name,
-              role: profile.role,
+              role: profile.role || "professional",
               title: profile.title || "",
               lat,
               lng,

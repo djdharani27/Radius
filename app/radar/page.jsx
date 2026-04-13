@@ -27,13 +27,21 @@ export default function RadarPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { router.replace("/"); return; }
-    if (!profile) { router.replace("/setup"); return; }
+    if (!user) {
+      router.replace("/");
+      return;
+    }
+    if (!profile) {
+      router.replace("/setup");
+    }
   }, [user, profile, loading, router]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission === "granted") { setNotifGranted(true); return; }
+    if (Notification.permission === "granted") {
+      setNotifGranted(true);
+      return;
+    }
     if (Notification.permission === "default") {
       Notification.requestPermission().then((p) => setNotifGranted(p === "granted"));
     }
@@ -54,7 +62,7 @@ export default function RadarPage() {
       ? `${rangeMeters} m`
       : `${(rangeMeters / 1000).toFixed(1)} km`;
 
-  const isEntrepreneur = profile?.role === "entrepreneur";
+  const isVisibleOnRadar = profile?.radarActive ?? true;
 
   if (loading || !profile) {
     return <div className={styles.loading}>// initializing radar...</div>;
@@ -63,22 +71,22 @@ export default function RadarPage() {
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <span className={styles.brand}>ENTRERADAR</span>
+        <span className={styles.brand}>RADIUS</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div className={`${styles.pill} ${isEntrepreneur ? styles.pillGreen : styles.pillAmber}`}>
+          <div className={`${styles.pill} ${isVisibleOnRadar ? styles.pillGreen : styles.pillAmber}`}>
             <span className={styles.pillDot} />
-            {isEntrepreneur ? "BROADCASTING" : "SCANNING"}
+            {isVisibleOnRadar ? "VISIBLE" : "HIDDEN"}
           </div>
-          <button className={styles.editBtn} onClick={() => setShowEdit(true)}>✎ profile</button>
-          <button className={styles.inboxBtn} onClick={() => router.push("/inbox")}>💬 inbox</button>
+          <button className={styles.editBtn} onClick={() => setShowEdit(true)}>profile</button>
+          <button className={styles.inboxBtn} onClick={() => router.push("/inbox")}>inbox</button>
         </div>
       </header>
 
-      {locError && <div className={styles.errorBanner}>⚠ {locError}</div>}
+      {locError && <div className={styles.errorBanner}>Location issue: {locError}</div>}
 
       {!notifGranted && !locError && (
         <div className={styles.notifBanner}>
-          Enable notifications to get alerted when an entrepreneur is nearby.
+          Enable notifications to get alerted when professionals are nearby.
           <button
             className={styles.notifBtn}
             onClick={() => Notification.requestPermission().then((p) => setNotifGranted(p === "granted"))}
@@ -107,7 +115,10 @@ export default function RadarPage() {
           <span className={styles.sliderValue}>{rangeLabel}</span>
         </div>
         <input
-          type="range" min={RANGE_MIN} max={RANGE_MAX} step={100}
+          type="range"
+          min={RANGE_MIN}
+          max={RANGE_MAX}
+          step={100}
           value={rangeMeters}
           onChange={(e) => setRangeMeters(Number(e.target.value))}
           className={styles.slider}
@@ -119,7 +130,7 @@ export default function RadarPage() {
 
       <div className={styles.listSection}>
         <div className={styles.listHeader}>
-          // nearby entrepreneurs
+          // nearby professionals
           <span className={styles.listCount}>
             {nearby.length > 0 ? ` (${nearby.length})` : ""}
           </span>

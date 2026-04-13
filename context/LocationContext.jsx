@@ -3,7 +3,11 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { db, auth } from "@/lib/firebase";
 import {
-  doc, setDoc, deleteDoc, serverTimestamp, onSnapshot,
+  doc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore";
 
 const LocationContext = createContext({ lat: null, lng: null, error: null });
@@ -15,59 +19,86 @@ export function useLocationContext() {
 export function LocationProvider({ children }) {
   const [position, setPosition] = useState({ lat: null, lng: null });
   const [error, setError] = useState(null);
+
   const watchRef = useRef(null);
   const profileRef = useRef(null);
   const radarActiveRef = useRef(true);
   const positionRef = useRef({ lat: null, lng: null });
+  const userRef = useRef(null);
+  const profileUnsubRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
-    let profileUnsub = null;
+
+    async function writeLiveLocation(user, profile, lat, lng) {
+      if (!user?.uid || !profile) return;
+
+      try {
+        await setDoc(
+          doc(db, "users", user.uid),
+          {
+            uid: user.uid,
+            name: profile.name || "",
+            role: profile.role || "professional",
+            title: profile.title || "",
+            linkedin: profile.linkedin || "",
+            twitter: profile.twitter || "",
+            instagram: profile.instagram || "",
+            whatsapp: profile.whatsapp || "",
+            website: profile.website || "",
+            lat,
+            lng,
+            lastSeen: serverTimestamp(),
+            active: true,
+          },
+          { merge: true }
+        );
+      } catch (e) {
+        console.warn("Location write failed:", e.message);
+      }
+    }
+
+    async function removeLiveLocation(uid) {
+      if (!uid) return;
+      try {
+        await deleteDoc(doc(db, "users", uid));
+      } catch (_) {}
+    }
 
     async function start() {
       const user = await new Promise((resolve) => {
-        const unsub = auth.onAuthStateChanged((u) => { unsub(); resolve(u); });
+        const unsub = auth.onAuthStateChanged((u) => {
+          unsub();
+          resolve(u);
+        });
       });
 
       if (!user || cancelled) return;
+      userRef.current = user;
 
-      // Listen to profile in real-time so radarActive changes are picked up
-      profileUnsub = onSnapshot(doc(db, "profiles", user.uid), async (snap) => {
+      profileUnsubRef.current = onSnapshot(doc(db, "profiles", user.uid), async (snap) => {
         if (!snap.exists() || cancelled) return;
 
         const profile = snap.data();
-        const wasInactive = !radarActiveRef.current;
-        const isNowActive = profile.radarActive ?? true;
+        const wasActive = radarActiveRef.current;
+        const isActive = profile.radarActive ?? true;
 
         profileRef.current = profile;
-        radarActiveRef.current = isNowActive;
+        radarActiveRef.current = isActive;
 
-        // Radar just turned ON — immediately write current position
-        if (wasInactive && isNowActive && positionRef.current.lat) {
-          try {
-            await setDoc(
-              doc(db, "users", user.uid),
-              {
-                name: profile.name,
-                role: profile.role,
-                title: profile.title || "",
-                lat: positionRef.current.lat,
-                lng: positionRef.current.lng,
-                lastSeen: serverTimestamp(),
-                active: true,
-              },
-              { merge: true }
-            );
-          } catch (e) {
-            console.warn("Re-activate write failed:", e.message);
-          }
+        // Radar turned ON -> write current position immediately
+        if (!wasActive && isActive && positionRef.current.lat != null && positionRef.current.lng != null) {
+          await writeLiveLocation(
+            user,
+            profile,
+            positionRef.current.lat,
+            positionRef.current.lng
+          );
         }
 
-        // Radar just turned OFF — remove from users
-        if (!wasInactive && !isNowActive) {
-          try {
-            await deleteDoc(doc(db, "users", user.uid));
-          } catch (_) {}
+        // Radar turned OFF -> remove from live users immediately
+        if (wasActive && !isActive) {
+          await removeLiveLocation(user.uid);
         }
       });
 
@@ -79,64 +110,54 @@ export function LocationProvider({ children }) {
       watchRef.current = navigator.geolocation.watchPosition(
         async (pos) => {
           if (cancelled) return;
+
           const { latitude: lat, longitude: lng } = pos.coords;
 
-          // Always track position locally
           setPosition({ lat, lng });
           positionRef.current = { lat, lng };
 
-          // Only write to Firestore if radar is active
           if (!radarActiveRef.current) return;
 
-          const p = profileRef.current;
-          if (!p) return;
+          const profile = profileRef.current;
+          if (!profile) return;
 
-          try {
-            await setDoc(
-              doc(db, "users", user.uid),
-              {
-                name: p.name,
-                role: p.role,
-                title: p.title || "",
-                lat,
-                lng,
-                lastSeen: serverTimestamp(),
-                active: true,
-              },
-              { merge: true }
-            );
-          } catch (e) {
-            console.warn("Location write failed:", e.message);
-          }
+          await writeLiveLocation(user, profile, lat, lng);
         },
         (err) => setError("Location error: " + err.message),
-        { enableHighAccuracy: false, maximumAge: 5000, timeout: 15000 }
+        {
+          enableHighAccuracy: false,
+          maximumAge: 5000,
+          timeout: 15000,
+        }
       );
     }
 
     start();
 
-    async function cleanup() {
+    function syncCleanup() {
       cancelled = true;
-      // Only remove from radar on tab close if radarActive is false
-      if (!radarActiveRef.current) {
-        const user = auth.currentUser;
-        if (user) {
-          try { await deleteDoc(doc(db, "users", user.uid)); } catch (_) {}
-        }
-      }
+
       if (watchRef.current !== null) {
         navigator.geolocation.clearWatch(watchRef.current);
         watchRef.current = null;
       }
-      if (profileUnsub) profileUnsub();
+
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+        profileUnsubRef.current = null;
+      }
+
+      const uid = userRef.current?.uid;
+      if (uid) {
+        deleteDoc(doc(db, "users", uid)).catch(() => {});
+      }
     }
 
-    window.addEventListener("beforeunload", cleanup);
+    window.addEventListener("beforeunload", syncCleanup);
+
     return () => {
-      cancelled = true;
-      cleanup();
-      window.removeEventListener("beforeunload", cleanup);
+      syncCleanup();
+      window.removeEventListener("beforeunload", syncCleanup);
     };
   }, []);
 
