@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",          // ✅ ADD THIS
-    "paths": {               // ✅ ADD THIS
+    "paths": {
       "@/*": ["./*"]
     },
+    "ignoreDeprecations": "6.0",
 
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -24,8 +24,8 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    "**/*.js",      // ✅ ADD THIS (important since you're using JS)
-    "**/*.jsx"      // ✅ ADD THIS
+    "**/*.js",
+    "**/*.jsx"
   ],
   "exclude": ["node_modules"]
 }
