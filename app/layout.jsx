@@ -1,4 +1,6 @@
 import { LocationProvider } from "@/context/LocationContext";
+import { ChatNotificationProvider } from "@/context/ChatNotificationContext";
+import RadarToggle from "@/components/RadarToggle";
 import "./globals.css";
 
 export const metadata = {
@@ -11,7 +13,10 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <LocationProvider>
-          {children}
+          <ChatNotificationProvider>
+            {children}
+            <RadarToggle />
+          </ChatNotificationProvider>
         </LocationProvider>
       </body>
     </html>

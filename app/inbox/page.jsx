@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import styles from "./page.module.css";
@@ -22,21 +22,35 @@ export default function InboxPage() {
       orderBy("lastMessageAt", "desc")
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      setChats(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    const unsub = onSnapshot(q, async (snap) => {
+      const chatDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Fetch the other person's profile for each chat
+      const enriched = await Promise.all(
+        chatDocs.map(async (chat) => {
+          const otherUid = chat.participants?.find((p) => p !== user.uid);
+          if (!otherUid) return { ...chat, otherName: "Unknown", otherTitle: "" };
+
+          try {
+            const profileSnap = await getDoc(doc(db, "profiles", otherUid));
+            const profile = profileSnap.exists() ? profileSnap.data() : null;
+            return {
+              ...chat,
+              otherUid,
+              otherName: profile?.name || "Unknown",
+              otherTitle: profile?.title || "entrepreneur",
+            };
+          } catch {
+            return { ...chat, otherUid, otherName: "Unknown", otherTitle: "" };
+          }
+        })
+      );
+
+      setChats(enriched);
     });
 
-    return unsub;
+    return () => unsub();
   }, [user, authLoading, router]);
-
-  function getOtherUid(chat) {
-    return chat.participants.find((p) => p !== user?.uid);
-  }
-
-  function getOtherName(chat) {
-    const otherUid = getOtherUid(chat);
-    return chat.names?.[otherUid] || "Unknown";
-  }
 
   if (authLoading) return <div className={styles.loading}>// loading...</div>;
 
@@ -57,18 +71,22 @@ export default function InboxPage() {
           </div>
         ) : (
           chats.map((chat) => {
-            const otherUid = getOtherUid(chat);
-            const name = getOtherName(chat);
-            const initials = name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+            const initials = chat.otherName
+              .split(" ")
+              .map((w) => w[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase();
+
             return (
               <div
                 key={chat.id}
                 className={styles.chatRow}
-                onClick={() => router.push(`/chat/${otherUid}`)}
+                onClick={() => router.push(`/chat/${chat.otherUid}`)}
               >
                 <div className={styles.avatar}>{initials}</div>
                 <div className={styles.info}>
-                  <div className={styles.name}>{name}</div>
+                  <div className={styles.name}>{chat.otherName}</div>
                   <div className={styles.lastMsg}>{chat.lastMessage || "..."}</div>
                 </div>
                 <div className={styles.arrow}>→</div>

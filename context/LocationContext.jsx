@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { db, auth } from "@/lib/firebase";
-import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import {
+  doc, setDoc, deleteDoc, serverTimestamp, onSnapshot,
+} from "firebase/firestore";
 
 const LocationContext = createContext({ lat: null, lng: null, error: null });
 
@@ -15,30 +17,59 @@ export function LocationProvider({ children }) {
   const [error, setError] = useState(null);
   const watchRef = useRef(null);
   const profileRef = useRef(null);
+  const radarActiveRef = useRef(true);
+  const positionRef = useRef({ lat: null, lng: null });
 
-  // Listen to auth + profile changes from outside
-  // We read directly from Firestore when auth is ready
   useEffect(() => {
     let cancelled = false;
+    let profileUnsub = null;
 
     async function start() {
-      // Wait for auth to be ready
-      await new Promise((resolve) => {
-        const unsub = auth.onAuthStateChanged((user) => {
-          unsub();
-          resolve(user);
-        });
+      const user = await new Promise((resolve) => {
+        const unsub = auth.onAuthStateChanged((u) => { unsub(); resolve(u); });
       });
 
-      const user = auth.currentUser;
-      if (!user) return;
+      if (!user || cancelled) return;
 
-      // Load profile
-      const { doc: firestoreDoc, getDoc } = await import("firebase/firestore");
-      const snap = await getDoc(firestoreDoc(db, "profiles", user.uid));
-      if (!snap.exists() || cancelled) return;
+      // Listen to profile in real-time so radarActive changes are picked up
+      profileUnsub = onSnapshot(doc(db, "profiles", user.uid), async (snap) => {
+        if (!snap.exists() || cancelled) return;
 
-      profileRef.current = snap.data();
+        const profile = snap.data();
+        const wasInactive = !radarActiveRef.current;
+        const isNowActive = profile.radarActive ?? true;
+
+        profileRef.current = profile;
+        radarActiveRef.current = isNowActive;
+
+        // Radar just turned ON — immediately write current position
+        if (wasInactive && isNowActive && positionRef.current.lat) {
+          try {
+            await setDoc(
+              doc(db, "users", user.uid),
+              {
+                name: profile.name,
+                role: profile.role,
+                title: profile.title || "",
+                lat: positionRef.current.lat,
+                lng: positionRef.current.lng,
+                lastSeen: serverTimestamp(),
+                active: true,
+              },
+              { merge: true }
+            );
+          } catch (e) {
+            console.warn("Re-activate write failed:", e.message);
+          }
+        }
+
+        // Radar just turned OFF — remove from users
+        if (!wasInactive && !isNowActive) {
+          try {
+            await deleteDoc(doc(db, "users", user.uid));
+          } catch (_) {}
+        }
+      });
 
       if (!navigator.geolocation) {
         setError("Geolocation not supported.");
@@ -49,18 +80,24 @@ export function LocationProvider({ children }) {
         async (pos) => {
           if (cancelled) return;
           const { latitude: lat, longitude: lng } = pos.coords;
-          setPosition({ lat, lng });
 
-          const profile = profileRef.current;
-          if (!profile) return;
+          // Always track position locally
+          setPosition({ lat, lng });
+          positionRef.current = { lat, lng };
+
+          // Only write to Firestore if radar is active
+          if (!radarActiveRef.current) return;
+
+          const p = profileRef.current;
+          if (!p) return;
 
           try {
             await setDoc(
               doc(db, "users", user.uid),
               {
-                name: profile.name,
-                role: profile.role,
-                title: profile.title || "",
+                name: p.name,
+                role: p.role,
+                title: p.title || "",
                 lat,
                 lng,
                 lastSeen: serverTimestamp(),
@@ -81,14 +118,18 @@ export function LocationProvider({ children }) {
 
     async function cleanup() {
       cancelled = true;
-      const user = auth.currentUser;
-      if (user) {
-        try { await deleteDoc(doc(db, "users", user.uid)); } catch (_) {}
+      // Only remove from radar on tab close if radarActive is false
+      if (!radarActiveRef.current) {
+        const user = auth.currentUser;
+        if (user) {
+          try { await deleteDoc(doc(db, "users", user.uid)); } catch (_) {}
+        }
       }
       if (watchRef.current !== null) {
         navigator.geolocation.clearWatch(watchRef.current);
         watchRef.current = null;
       }
+      if (profileUnsub) profileUnsub();
     }
 
     window.addEventListener("beforeunload", cleanup);
