@@ -203,10 +203,54 @@
   box-shadow: 0 0 10px rgba(0, 255, 140, 0.5);
 }
 
+.rangeButtonsBlock {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rangeButtonsLabel {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.rangeButtons {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rangeBtn {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 255, 140, 0.16);
+  background: rgba(0, 255, 140, 0.04);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.rangeBtn:hover {
+  border-color: rgba(0, 255, 140, 0.35);
+  color: var(--green);
+}
+
+.rangeBtnActive {
+  border-color: rgba(0, 255, 140, 0.45);
+  background: rgba(0, 255, 140, 0.1);
+  color: var(--green);
+}
+
 .sliderTicks {
   display: flex;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 8px;
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text-muted);

@@ -14,8 +14,9 @@ import styles from "./page.module.css";
 const RadarCanvas = dynamic(() => import("@/components/RadarCanvas"), { ssr: false });
 
 const RANGE_MIN = 100;
-const RANGE_MAX = 5000;
+const RANGE_SLIDER_MAX = 10000;
 const RANGE_DEFAULT = 1000;
+const RANGE_BUTTONS = [50000, 100000, 250000];
 
 export default function RadarPage() {
   const router = useRouter();
@@ -164,14 +165,33 @@ export default function RadarPage() {
         <input
           type="range"
           min={RANGE_MIN}
-          max={RANGE_MAX}
+          max={RANGE_SLIDER_MAX}
           step={100}
-          value={rangeMeters}
+          value={Math.min(rangeMeters, RANGE_SLIDER_MAX)}
           onChange={(e) => setRangeMeters(Number(e.target.value))}
           className={styles.slider}
         />
         <div className={styles.sliderTicks}>
-          <span>100 m</span><span>1 km</span><span>2 km</span><span>5 km</span>
+          <span>100 m</span><span>2.5 km</span><span>5 km</span><span>10 km</span>
+        </div>
+        <div className={styles.rangeButtonsBlock}>
+          <div className={styles.rangeButtonsLabel}>// extended range</div>
+          <div className={styles.rangeButtons}>
+            {RANGE_BUTTONS.map((preset) => {
+              const isActive = rangeMeters === preset;
+
+              return (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`${styles.rangeBtn} ${isActive ? styles.rangeBtnActive : ""}`}
+                  onClick={() => setRangeMeters(preset)}
+                >
+                  {preset / 1000} km
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
