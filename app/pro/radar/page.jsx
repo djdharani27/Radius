@@ -69,8 +69,8 @@ export default function ProRadarPage() {
     <main className={styles.main}>
       <header className={styles.header}>
         <div>
-          <div className={styles.eyebrow}>Synkedin Pro</div>
-          <h1 className={styles.title}>Professional radar</h1>
+          <div className={styles.eyebrow}>Synkedin</div>
+          <h1 className={styles.title}>Radar</h1>
         </div>
         <div className={styles.headerActions}>
           <button className={styles.secondaryBtn} onClick={() => setShowEdit(true)}>Edit profile</button>
@@ -84,7 +84,7 @@ export default function ProRadarPage() {
           <div className={styles.metricLabel}>Visibility</div>
           <div className={styles.metricValue}>{isVisibleOnRadar ? "Visible" : "Hidden"}</div>
           <div className={styles.metricHint}>
-            {isVisibleOnRadar ? "You can be discovered by nearby professionals." : "You are off radar right now."}
+            {isVisibleOnRadar ? "You can be discovered by the right people nearby." : "You are off radar right now."}
           </div>
         </div>
         <div className={styles.heroCard}>
@@ -117,7 +117,7 @@ export default function ProRadarPage() {
               ? "Location access is blocked. Enable it in browser settings to appear on radar."
               : permissionState === "unsupported"
                 ? "This browser does not support geolocation."
-                : "Enable location to discover nearby professionals in real time."}
+                : "Enable location to discover the right people in real time."}
           </span>
           {permissionState !== "unsupported" && (
             <button className={styles.inlineBtn} onClick={() => requestLocationAccess()} disabled={isRequesting}>
@@ -129,7 +129,7 @@ export default function ProRadarPage() {
 
       {!notifGranted && !locError && (
         <div className={styles.alertInfo}>
-          <span>Enable notifications so Synkedin Pro can alert you when relevant professionals enter range.</span>
+          <span>Enable notifications so Synkedin can alert you when the right people enter range.</span>
           <button className={styles.inlineBtn} onClick={() => Notification.requestPermission().then((permission) => setNotifGranted(permission === "granted"))}>
             Allow
           </button>
@@ -201,7 +201,7 @@ export default function ProRadarPage() {
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
               <div>
-                <div className={styles.panelEyebrow}>Nearby professionals</div>
+                <div className={styles.panelEyebrow}>Nearby people</div>
                 <h2 className={styles.panelTitle}>People you can reach now</h2>
               </div>
               <div className={styles.countPill}>{nearby.length}</div>

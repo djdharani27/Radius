@@ -54,13 +54,13 @@ export default function LandingPage() {
           <div className={styles.logoPulse} />
         </div>
         <h1 className={styles.logoTitle}>SYNKEDIN</h1>
-        <p className={styles.logoSub}>professional proximity network</p>
+        <p className={styles.logoSub}>networking with the right people</p>
       </div>
 
       <div className={styles.card}>
         <div className={styles.cardTitle}>// sign in to continue</div>
         <p className={styles.cardDesc}>
-          Discover professionals around you in real time.
+          Discover the right people around you in real time.
         </p>
 
         {error && <p className={styles.error}>{error}</p>}

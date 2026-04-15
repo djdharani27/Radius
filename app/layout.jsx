@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "Synkedin",
-  description: "Real-time proximity network for professionals",
+  description: "Real-time networking with the right people",
 };
 
 export default function RootLayout({ children }) {

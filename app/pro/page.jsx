@@ -44,10 +44,10 @@ export default function ProLandingPage() {
   return (
     <main className={styles.main}>
       <section className={styles.hero}>
-        <div className={styles.badge}>Synkedin Pro</div>
-        <h1 className={styles.title}>A more polished space for high-intent professional discovery.</h1>
+        <div className={styles.badge}>Synkedin</div>
+        <h1 className={styles.title}>Meet the right people nearby.</h1>
         <p className={styles.copy}>
-          Meet nearby founders, operators, investors, and specialists with a calmer interface built for deliberate networking.
+          Discover, chat, and Synk with people around you.
         </p>
         <div className={styles.actions}>
           <button className={styles.primaryBtn} onClick={handleSignIn} disabled={busy}>
@@ -70,16 +70,16 @@ export default function ProLandingPage() {
 
         <div className={styles.grid}>
           <article className={styles.card}>
-            <h3>Professional radar</h3>
-            <p>Cleaner discovery cards, better range controls, and a calmer dashboard for scanning relevant people nearby.</p>
+            <h3>Radar</h3>
+            <p>See who is nearby in real time.</p>
           </article>
           <article className={styles.card}>
-            <h3>Meetup planning</h3>
-            <p>Chat flows support Synk requests, collaborative plan proposals, confirmations, and shared updates in real time.</p>
+            <h3>Synk</h3>
+            <p>Plan a meeting together inside chat.</p>
           </article>
           <article className={styles.card}>
-            <h3>Profile polish</h3>
-            <p>Descriptions, profile photos, and social links are presented in a format that feels closer to a real professional platform.</p>
+            <h3>Profile</h3>
+            <p>Show who you are and why people should network with you.</p>
           </article>
         </div>
       </section>
