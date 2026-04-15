@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import styles from "./page.module.css";
 
 const SOCIALS = [
@@ -71,30 +72,35 @@ export default function ProfilePage() {
     );
   }
 
-  const initials = profile.name
-    ?.split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   const isVisibleOnRadar = profile.radarActive ?? true;
 
   return (
     <main className={styles.main}>
       <header className={styles.header}>
         <button className={styles.backBtn} onClick={() => router.back()}>back</button>
-        <span className={styles.brand}>RADIUS</span>
+        <span className={styles.brand}>SYNKEDIN</span>
       </header>
 
       <div className={styles.hero}>
-        <div className={styles.avatar}>{initials}</div>
+        <ProfileAvatar
+          name={profile.name}
+          photoURL={profile.photoURL}
+          size="lg"
+          className={styles.avatar}
+        />
         <h1 className={styles.name}>{profile.name}</h1>
         <div className={styles.title}>{profile.title || "professional"}</div>
         <div className={`${styles.badge} ${isVisibleOnRadar ? styles.badgeGreen : styles.badgeAmber}`}>
           {isVisibleOnRadar ? "Professional" : "Invisible Mode"}
         </div>
       </div>
+
+      {profile.description && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>// about</div>
+          <p className={styles.description}>{profile.description}</p>
+        </div>
+      )}
 
       <div className={styles.section}>
         <div className={styles.sectionTitle}>// connect</div>

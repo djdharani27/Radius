@@ -4,7 +4,7 @@ import RadarToggle from "@/components/RadarToggle";
 import "./globals.css";
 
 export const metadata = {
-  title: "Radius",
+  title: "Synkedin",
   description: "Real-time proximity network for professionals",
 };
 

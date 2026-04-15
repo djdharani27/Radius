@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { db } from "@/lib/firebase";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import ProfileAvatar from "@/components/ProfileAvatar";
+import { compressProfileImage } from "@/lib/profile";
 import styles from "./page.module.css";
 
 const TITLE_SUGGESTIONS = [
@@ -27,6 +29,8 @@ export default function SetupPage() {
 
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [photoURL, setPhotoURL] = useState("");
   const [socials, setSocials] = useState({
     linkedin: "",
     twitter: "",
@@ -36,6 +40,7 @@ export default function SetupPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (loading) return;
@@ -48,10 +53,32 @@ export default function SetupPage() {
       return;
     }
     setName(user.displayName || "");
+    setPhotoURL(user.photoURL || "");
   }, [user, profile, loading, router]);
 
   function updateSocial(key, val) {
     setSocials((prev) => ({ ...prev, [key]: val }));
+  }
+
+  async function handlePhotoChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Select an image file for your profile picture.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const compressed = await compressProfileImage(file);
+      setPhotoURL(compressed);
+      setError("");
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to process the selected image.");
+    } finally {
+      event.target.value = "";
+    }
   }
 
   async function handleSave() {
@@ -72,6 +99,8 @@ export default function SetupPage() {
         name: name.trim(),
         role: "professional",
         title: title.trim(),
+        description: description.trim(),
+        photoURL: photoURL || "",
         ...Object.fromEntries(
           Object.entries(socials).map(([k, v]) => [k, v.trim()])
         ),
@@ -93,11 +122,43 @@ export default function SetupPage() {
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <span className={styles.brand}>RADIUS</span>
+        <span className={styles.brand}>SYNKEDIN</span>
         <span className={styles.step}>// setup profile</span>
       </header>
 
       <div className={styles.scroll}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>Profile Picture</label>
+          <div className={styles.photoCard}>
+            <ProfileAvatar name={name || user?.displayName} photoURL={photoURL} size="lg" />
+            <div className={styles.photoActions}>
+              <button
+                type="button"
+                className={styles.secondaryBtn}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload Photo
+              </button>
+              {photoURL && (
+                <button
+                  type="button"
+                  className={styles.ghostBtn}
+                  onClick={() => setPhotoURL("")}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className={styles.hiddenInput}
+              onChange={handlePhotoChange}
+            />
+          </div>
+        </div>
+
         <div className={styles.fieldGroup}>
           <label className={styles.label}>Your Name</label>
           <input
@@ -131,6 +192,20 @@ export default function SetupPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className={styles.fieldGroup}>
+          <label className={styles.label}>
+            About You <span className={styles.optional}>(optional)</span>
+          </label>
+          <textarea
+            className={`${styles.input} ${styles.textarea}`}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Tell people what you do, what you are building, or what kind of connections you want to make."
+            maxLength={280}
+          />
+          <div className={styles.helperText}>{description.length}/280</div>
         </div>
 
         <div className={styles.fieldGroup}>

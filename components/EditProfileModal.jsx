@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import ProfileAvatar from "@/components/ProfileAvatar";
+import { compressProfileImage } from "@/lib/profile";
 import styles from "./EditProfileModal.module.css";
 
 const SOCIAL_FIELDS = [
@@ -16,6 +18,8 @@ const SOCIAL_FIELDS = [
 export default function EditProfileModal({ user, profile, onClose, onSaved }) {
   const [name, setName] = useState(profile.name || "");
   const [title, setTitle] = useState(profile.title || "");
+  const [description, setDescription] = useState(profile.description || "");
+  const [photoURL, setPhotoURL] = useState(profile.photoURL || "");
   const [socials, setSocials] = useState({
     linkedin: profile.linkedin || "",
     twitter: profile.twitter || "",
@@ -25,9 +29,31 @@ export default function EditProfileModal({ user, profile, onClose, onSaved }) {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const fileInputRef = useRef(null);
 
   function updateSocial(key, val) {
     setSocials((prev) => ({ ...prev, [key]: val }));
+  }
+
+  async function handlePhotoChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Select an image file for your profile picture.");
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      const compressed = await compressProfileImage(file);
+      setPhotoURL(compressed);
+      setError("");
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to process the selected image.");
+    } finally {
+      event.target.value = "";
+    }
   }
 
   async function handleSave() {
@@ -48,6 +74,8 @@ export default function EditProfileModal({ user, profile, onClose, onSaved }) {
         name: name.trim(),
         role: "professional",
         title: title.trim(),
+        description: description.trim(),
+        photoURL: photoURL || "",
         ...Object.fromEntries(
           Object.entries(socials).map(([k, v]) => [k, v.trim()])
         ),
@@ -73,6 +101,38 @@ export default function EditProfileModal({ user, profile, onClose, onSaved }) {
 
         <div className={styles.body}>
           <div className={styles.fieldGroup}>
+            <label className={styles.label}>Profile Picture</label>
+            <div className={styles.photoCard}>
+              <ProfileAvatar name={name} photoURL={photoURL} size="lg" />
+              <div className={styles.photoActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryBtn}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Upload Photo
+                </button>
+                {photoURL && (
+                  <button
+                    type="button"
+                    className={styles.ghostBtn}
+                    onClick={() => setPhotoURL("")}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className={styles.hiddenInput}
+                onChange={handlePhotoChange}
+              />
+            </div>
+          </div>
+
+          <div className={styles.fieldGroup}>
             <label className={styles.label}>Name</label>
             <input
               className={styles.input}
@@ -97,6 +157,21 @@ export default function EditProfileModal({ user, profile, onClose, onSaved }) {
               placeholder="e.g. Product Designer"
               maxLength={50}
             />
+          </div>
+
+          <div className={styles.fieldGroup}>
+            <label className={styles.label}>About You</label>
+            <textarea
+              className={`${styles.input} ${styles.textarea}`}
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                setError("");
+              }}
+              placeholder="Tell people what you do, what you are building, or what kind of connections you want to make."
+              maxLength={280}
+            />
+            <div className={styles.helperText}>{description.length}/280</div>
           </div>
 
           <div className={styles.fieldGroup}>

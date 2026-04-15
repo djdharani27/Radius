@@ -54,11 +54,6 @@ export function useLocation(profile) {
     );
 
     async function cleanup() {
-      if (uidRef.current) {
-        try {
-          await deleteDoc(doc(db, "users", uidRef.current));
-        } catch (_) {}
-      }
       if (watchRef.current !== null) {
         navigator.geolocation.clearWatch(watchRef.current);
       }

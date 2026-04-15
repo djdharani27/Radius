@@ -86,6 +86,10 @@
   font-size: 13px;
   color: var(--red);
   font-family: var(--mono);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .notifBanner {
@@ -111,6 +115,23 @@
   font-size: 12px;
   font-family: var(--mono);
   white-space: nowrap;
+}
+
+.bannerBtn {
+  background: rgba(255, 77, 109, 0.16);
+  border: 1px solid rgba(255, 77, 109, 0.3);
+  color: var(--red);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.notifBtn:disabled,
+.bannerBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ---- Radar ---- */

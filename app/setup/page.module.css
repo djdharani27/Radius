@@ -56,6 +56,47 @@
   gap: 0.5rem;
 }
 
+.photoCard {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  background: #0f172a;
+}
+
+.photoActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.secondaryBtn,
+.ghostBtn {
+  border-radius: 999px;
+  padding: 0.5rem 0.85rem;
+  font-family: monospace;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.secondaryBtn {
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  color: #67e8f9;
+}
+
+.ghostBtn {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+}
+
+.hiddenInput {
+  display: none;
+}
+
 .label {
   font-family: monospace;
   font-size: 0.75rem;
@@ -83,6 +124,19 @@
 }
 .input:focus { border-color: #22d3ee; }
 .input::placeholder { color: #334155; }
+
+.textarea {
+  min-height: 110px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.helperText {
+  font-size: 0.72rem;
+  color: #475569;
+  font-family: monospace;
+  text-align: right;
+}
 
 /* Role grid */
 .roleGrid {

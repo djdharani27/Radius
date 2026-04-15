@@ -96,8 +96,8 @@ function fireNotification(name, distMeters) {
       : `${(distMeters / 1000).toFixed(1)} km`;
 
   new Notification("Professional nearby", {
-    body: `${name} is nearby on Radius - ${dist} away`,
-    tag: "radius-" + name,
+    body: `${name} is nearby on Synkedin - ${dist} away`,
+    tag: "synkedin-" + name,
     renotify: false,
   });
 }

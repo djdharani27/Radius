@@ -53,7 +53,7 @@ export default function LandingPage() {
         <div className={styles.logoMark}>
           <div className={styles.logoPulse} />
         </div>
-        <h1 className={styles.logoTitle}>RADIUS</h1>
+        <h1 className={styles.logoTitle}>SYNKEDIN</h1>
         <p className={styles.logoSub}>professional proximity network</p>
       </div>
 
@@ -75,7 +75,7 @@ export default function LandingPage() {
         </button>
 
         <p className={styles.terms}>
-          By continuing you allow Radius to use your approximate location while active.
+          By continuing you allow Synkedin to use your approximate location while active.
         </p>
       </div>
     </main>

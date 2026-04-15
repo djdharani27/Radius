@@ -20,7 +20,14 @@ const RANGE_DEFAULT = 1000;
 export default function RadarPage() {
   const router = useRouter();
   const { user, profile, loading, refreshProfile } = useAuth();
-  const { lat, lng, error: locError } = useLocationContext();
+  const {
+    lat,
+    lng,
+    error: locError,
+    permissionState,
+    isRequesting: isRequestingLocation,
+    requestLocationAccess,
+  } = useLocationContext();
   const [rangeMeters, setRangeMeters] = useState(RANGE_DEFAULT);
   const [notifGranted, setNotifGranted] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -63,6 +70,11 @@ export default function RadarPage() {
       : `${(rangeMeters / 1000).toFixed(1)} km`;
 
   const isVisibleOnRadar = profile?.radarActive ?? true;
+  const shouldShowLocationAction =
+    permissionState === "prompt" ||
+    permissionState === "denied" ||
+    permissionState === "unsupported" ||
+    (!lat && !lng);
 
   if (loading || !profile) {
     return <div className={styles.loading}>// initializing radar...</div>;
@@ -71,7 +83,7 @@ export default function RadarPage() {
   return (
     <main className={styles.main}>
       <header className={styles.header}>
-        <span className={styles.brand}>RADIUS</span>
+        <span className={styles.brand}>SYNKEDIN</span>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <div className={`${styles.pill} ${isVisibleOnRadar ? styles.pillGreen : styles.pillAmber}`}>
             <span className={styles.pillDot} />
@@ -82,7 +94,42 @@ export default function RadarPage() {
         </div>
       </header>
 
-      {locError && <div className={styles.errorBanner}>Location issue: {locError}</div>}
+      {locError && (
+        <div className={styles.errorBanner}>
+          <span>Location issue: {locError}</span>
+          {shouldShowLocationAction && permissionState !== "unsupported" && (
+            <button
+              type="button"
+              className={styles.bannerBtn}
+              onClick={() => requestLocationAccess()}
+              disabled={isRequestingLocation}
+            >
+              {isRequestingLocation ? "Requesting..." : "Retry"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {!locError && shouldShowLocationAction && (
+        <div className={styles.notifBanner}>
+          <span>
+            {permissionState === "denied"
+              ? "Location access is blocked. Enable it in your browser settings to appear on radar."
+              : permissionState === "unsupported"
+                ? "This browser does not support geolocation."
+                : "Enable location access to discover nearby professionals in real time."}
+          </span>
+          {permissionState !== "unsupported" && (
+            <button
+              className={styles.notifBtn}
+              onClick={() => requestLocationAccess()}
+              disabled={isRequestingLocation}
+            >
+              {isRequestingLocation ? "Requesting..." : "Allow"}
+            </button>
+          )}
+        </div>
+      )}
 
       {!notifGranted && !locError && (
         <div className={styles.notifBanner}>

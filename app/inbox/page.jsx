@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { collection, query, where, onSnapshot, orderBy, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import styles from "./page.module.css";
 
 export default function InboxPage() {
@@ -31,7 +32,7 @@ export default function InboxPage() {
       const enriched = await Promise.all(
         chatDocs.map(async (chat) => {
           const otherUid = chat.participants?.find((p) => p !== user.uid);
-          if (!otherUid) return { ...chat, otherName: "Unknown", otherTitle: "" };
+          if (!otherUid) return { ...chat, otherName: "Unknown", otherTitle: "", otherPhotoURL: "" };
 
           try {
             const profileSnap = await getDoc(doc(db, "profiles", otherUid));
@@ -41,9 +42,10 @@ export default function InboxPage() {
               otherUid,
               otherName: profile?.name || "Unknown",
               otherTitle: profile?.title || "professional",
+              otherPhotoURL: profile?.photoURL || "",
             };
           } catch {
-            return { ...chat, otherUid, otherName: "Unknown", otherTitle: "" };
+            return { ...chat, otherUid, otherName: "Unknown", otherTitle: "", otherPhotoURL: "" };
           }
         })
       );
@@ -73,20 +75,18 @@ export default function InboxPage() {
           </div>
         ) : (
           chats.map((chat) => {
-            const initials = chat.otherName
-              .split(" ")
-              .map((w) => w[0])
-              .join("")
-              .slice(0, 2)
-              .toUpperCase();
-
             return (
               <div
                 key={chat.id}
                 className={styles.chatRow}
                 onClick={() => router.push(`/chat/${chat.otherUid}`)}
               >
-                <div className={styles.avatar}>{initials}</div>
+                <ProfileAvatar
+                  name={chat.otherName}
+                  photoURL={chat.otherPhotoURL}
+                  size="sm"
+                  className={styles.avatar}
+                />
                 <div className={styles.info}>
                   <div className={styles.name}>{chat.otherName}</div>
                   <div className={styles.lastMsg}>{chat.lastMessage || "..."}</div>
