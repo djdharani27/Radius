@@ -48,7 +48,7 @@ export default function RadarToggle() {
     }
   }
 
-  if (!ready || HIDDEN_ON.includes(pathname)) return null;
+  if (!ready || HIDDEN_ON.includes(pathname) || pathname.startsWith("/pro")) return null;
 
   return (
     <button
