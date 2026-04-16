@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
-import { signInWithGoogle } from "@/lib/firebase";
+import { db, signInWithGoogle } from "@/lib/firebase";
 import styles from "./page.module.css";
 
 export default function ProLandingPage() {
@@ -23,7 +24,12 @@ export default function ProLandingPage() {
     setError("");
 
     try {
-      await signInWithGoogle();
+      const signedInUser = await signInWithGoogle();
+
+      if (signedInUser) {
+        const profileSnap = await getDoc(doc(db, "profiles", signedInUser.uid));
+        router.replace(profileSnap.exists() ? "/pro/radar" : "/pro/setup");
+      }
     } catch (signinError) {
       console.error("Sign-in failed:", signinError);
       setError("Unable to sign in right now. Please try again.");

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
-import { signInWithGoogle } from "@/lib/firebase";
+import { db, signInWithGoogle } from "@/lib/firebase";
 import styles from "./page.module.css";
 
 export default function LandingPage() {
@@ -29,7 +30,12 @@ export default function LandingPage() {
     setError("");
 
     try {
-      await signInWithGoogle();
+      const signedInUser = await signInWithGoogle();
+
+      if (signedInUser) {
+        const profileSnap = await getDoc(doc(db, "profiles", signedInUser.uid));
+        router.replace(profileSnap.exists() ? "/radar" : "/setup");
+      }
     } catch (e) {
       console.error("Sign-in failed:", e);
       setError("Sign-in failed. Please try again.");
