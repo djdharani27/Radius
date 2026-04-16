@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 /**
@@ -18,17 +18,44 @@ export function useAuth() {
 
   useEffect(() => {
     let active = true;
+    let profileUnsub = null;
 
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!active) return;
+
+      if (profileUnsub) {
+        profileUnsub();
+        profileUnsub = null;
+      }
 
       setUser(firebaseUser ?? null);
 
       try {
         if (firebaseUser) {
-          const snap = await getDoc(doc(db, "profiles", firebaseUser.uid));
+          setLoading(true);
+
+          const profileRef = doc(db, "profiles", firebaseUser.uid);
+          const snap = await getDoc(profileRef);
           if (!active) return;
+
           setProfile(snap.exists() ? snap.data() : null);
+          setLoading(false);
+
+          profileUnsub = onSnapshot(
+            profileRef,
+            (nextSnap) => {
+              if (!active) return;
+              setProfile(nextSnap.exists() ? nextSnap.data() : null);
+              setLoading(false);
+            },
+            (error) => {
+              console.error("Failed to subscribe auth profile:", error);
+              if (!active) return;
+              setProfile(null);
+              setLoading(false);
+            }
+          );
+          return;
         } else {
           setProfile(null);
         }
@@ -45,6 +72,9 @@ export function useAuth() {
 
     return () => {
       active = false;
+      if (profileUnsub) {
+        profileUnsub();
+      }
       unsub();
     };
   }, []);

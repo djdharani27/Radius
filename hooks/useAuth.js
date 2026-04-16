@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
 export function useAuth() {
@@ -26,8 +26,17 @@ export function useAuth() {
 
       try {
         if (firebaseUser) {
+          setLoading(true);
+
+          const profileRef = doc(db, "profiles", firebaseUser.uid);
+          const initialProfile = await getDoc(profileRef);
+          if (!active) return;
+
+          setProfile(initialProfile.exists() ? initialProfile.data() : null);
+          setLoading(false);
+
           profileUnsub = onSnapshot(
-            doc(db, "profiles", firebaseUser.uid),
+            profileRef,
             (snap) => {
               if (!active) return;
               setProfile(snap.exists() ? snap.data() : null);
