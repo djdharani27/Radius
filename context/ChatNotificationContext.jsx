@@ -58,8 +58,26 @@ export function ChatNotificationProvider({ children }) {
     let outerUnsub = null;
     let currentUid = null;
 
+    function cleanupChatListeners() {
+      outerUnsub?.();
+      outerUnsub = null;
+      Object.values(innerUnsubsRef.current).forEach((unsubscribe) => unsubscribe());
+      innerUnsubsRef.current = {};
+      lastMsgRef.current = {};
+      chatsHydratedRef.current = false;
+    }
+
     const authUnsub = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (!firebaseUser || currentUid === firebaseUser.uid) return;
+      if (!firebaseUser) {
+        currentUid = null;
+        cleanupChatListeners();
+        setToasts([]);
+        return;
+      }
+
+      if (currentUid === firebaseUser.uid) return;
+
+      cleanupChatListeners();
       currentUid = firebaseUser.uid;
       chatsHydratedRef.current = false;
       await setupListeners(firebaseUser.uid);
@@ -164,11 +182,7 @@ export function ChatNotificationProvider({ children }) {
 
     return () => {
       authUnsub();
-      outerUnsub?.();
-      Object.values(innerUnsubsRef.current).forEach((unsubscribe) => unsubscribe());
-      innerUnsubsRef.current = {};
-      lastMsgRef.current = {};
-      chatsHydratedRef.current = false;
+      cleanupChatListeners();
       Object.values(toastTimersRef.current).forEach((timer) => clearTimeout(timer));
       toastTimersRef.current = {};
     };
